@@ -4,15 +4,18 @@ author: "Mrudula & Carina"
 date: "`r format(Sys.time(), '%d %B,%Y')`"
 output:
   html_document:
-    theme: readable
+    code_folding: hide
+    fig_caption: yes
+    fig_height: 4
+    fig_width: 7
     highlight: breezedark
+    theme: readable
     toc: yes
     toc_float: yes
-    fig_caption: yes
-    fig_width: 7
-    fig_height: 4
-    code_folding: hide
+  pdf_document:
+    toc: yes
 ---
+
 
 
 ```{r load libs, message=FALSE, warning=FALSE}
@@ -30,6 +33,13 @@ Exp7data <- read.csv(here("Data","Exp7_fulldataset.csv"))
 Exp7data$participant <- as.factor(Exp7data$participant)
 ```
 
+## Recap of Experiment flow
+
+```{r}
+include_graphics(here("Figures", "Experiment flow.png"))
+```
+
+*The following factors(Distance, Response Type) were computed with all these trials, without excluding blocks since learn and test trials were intermixed.*
 
 ### Data preparation and cleaning ###
 
@@ -145,7 +155,7 @@ pander(summary(Exp7data$RT_io), style = "rmarkdown", caption = "Mean RTs after r
 
 ## Previous Occurence Analysis : Distance & Response Type
 
-### Distance
+### 1. Distance
 
 This variable tells how far ago the last occurence of distractor appear
 
@@ -192,7 +202,7 @@ pander(table(Exp7data$Distance), style = "rmarkdown", caption = "Number of previ
 ```
 
 
-### Previous Response ###
+### 2. Previous Response ###
 
 Coding what the previous Response was, whether it was the same or different. This variable is defined as Response Type, which has two factors: Response Change(RC) and Response Repetition (RR)
 
@@ -284,7 +294,7 @@ tab_model(randomIntercept_m0, show.ci = FALSE,show.stat = TRUE)
 
  > Validity has a significant effect
  
- This contains the valid and invalid trials across the whole experiment including learn and test
+ This contains the valid and invalid trials across the whole experiment including learn and test.
 
 ```{r m1, message=FALSE, warning=FALSE}
 
@@ -306,7 +316,7 @@ summary(randomSlopes_m1)
 
 ## 2. Model 2: Adding the Factors of Previous Response (RR or RC) to the previous model
 
-Using the standardised scores of the predictors (*centering is not effective because RR and RC are not equal in number*)
+Using the standardised scores of the predictors (*centering is not effective- RR and RC are not equal in number*)
 
 This also includes trials that are both learn and test, both invalid and valid.
 
@@ -338,6 +348,9 @@ So two models were run:
 2. With the headstart and Saliency  manipulation trials removed so that it includes the experiment trials that have the intermixture of learn and test (*although the first 80 trials are valid and invalid learn trials*)
 
 ### 3a & b. Validity, ResponseType and Distance as predictors for all the RTs and after removing headstart block
+
+ 
+
 
 ```{r m3, warning=FALSE, message=FALSE}
 

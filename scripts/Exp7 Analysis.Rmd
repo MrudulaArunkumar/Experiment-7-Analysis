@@ -55,6 +55,7 @@ Here are the sample trial displays
 - Example Learn Trial with G as a salient letter and L as a non salient pair
 - Example test display with salient distractor
 - Example test display with nonsalient distractor
+- The target is an odd/even number appearing at the centre.
 
 
 ```{r trials, echo=FALSE,fig.show="hold", out.width="30%"}
@@ -717,6 +718,16 @@ woSRBinter
 Check other memo titled "Exp7-mlm-Analysis.html"
 
 
+#### Recap of Experiment Flow
+
+```{r flow}
+
+include_graphics(here("Figures","Experiment flow.png"))
+
+```
+
+
+
 # Exploratory Analyses
 
 This exploratory analysis involves the factors of contingency awareness from the guessing trials and the awareness questionnaire responses
@@ -724,7 +735,7 @@ This exploratory analysis involves the factors of contingency awareness from the
 
 ## 1. Block Analysis 
 
-> There is a significant main effect of Block Count and the interation between saliency and validity remains significant.
+> There is a significant main effect of Block and the interaction between saliency and validity remains significant.
 
 The plot shows that the second block especially shows the trend as expected. But this is not significant on its own (i.e., only when second block is analyzed).
 
@@ -786,9 +797,9 @@ Exp7_CA <- Exp7_CA %>%
 
 CA_Summary <- Exp7_CA %>%
   dplyr::group_by(participant,Condition,Saliency) %>%
-  dplyr::summarise(LearnCA_Acc = sum(CAResponse.corr, na.rm=TRUE),
+  dplyr::summarise(LearnCA_Acc = (sum(CAResponse.corr, na.rm=TRUE)/8)*100,
                    MeanLearnAcc = mean(CAResponse.corr, na.rm=TRUE),
-                   TestCA_Acc = sum(CAResponse_2.corr, na.rm = TRUE),
+                   TestCA_Acc = (sum(CAResponse_2.corr, na.rm = TRUE)/2)*100,
                    MeantestAcc = mean(CAResponse_2.corr, na.rm = TRUE),
                   SalAcc = sum(SalTotalAcc, na.rm = TRUE),
                   NonSalAcc = sum(NonSalTotalAcc, na.rm = TRUE))
@@ -816,14 +827,29 @@ The plot shows that in the Guess trials resembling Learn trials- most participan
 Similarly in the test trial condition, salient trials seemed to have larger proportion of participants answering accurately than non salient.
 
 
-```{r CA plot, echo=FALSE, message=FALSE}
+```{r CA plot, echo=FALSE, message=FALSE, warning=FALSE}
 
 ggplot(CA_Summary, aes(x = Saliency))+
   geom_violin(aes(x= Saliency,y=TotalAcc,fill=Saliency),alpha = 0.5)+
   geom_jitter(aes(x= Saliency, y = TotalAcc,color=Saliency))+
+  stat_summary(aes(y = TotalAcc, group = Condition), fun.y=mean, geom="line", colour="black")+
+#  geom_hline(aes(yintercept = mean(TotalAcc), group = Saliency))+
  facet_grid(.~Condition)+scale_fill_manual(values = c("steelblue4","red4"))+scale_color_manual(values = c("steelblue4","red4"))+theme_classic()+
   ggtitle("Summary of Contingency Awareness scores \n split by Salient or non salient trial across conditions")
 ```
+
+
+The difference between Accuracy of Guessing trials in the learn trials are as follows:
+
+1. For the Guessing trials inthe learn block, the accuracy significantly differs between saliency
+2. For the Guessing trials at the end of the experiment resembling test trials, they do not differ significantly but almost $p = 0.07$ *two-sided*.
+
+```{r}
+pander(t.test(data = CA_Summary, TotalAcc~Saliency,subset = (Condition == "LearnGuess"),paired = TRUE), style = "rmarkdown", caption = "t.test comparing scores between salient and nonsalient guessing learn trials")
+
+pander(t.test(data = CA_Summary, TotalAcc~Saliency,subset = (Condition == "test"),paired = TRUE), style = "rmarkdown", caption = "t.test comparing scores between salient and nonsalient guessing learn trials")
+```
+
 
 ## 3. Awareness Questionnaire
 
