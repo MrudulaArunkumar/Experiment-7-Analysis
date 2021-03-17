@@ -37,9 +37,13 @@ Exp7data$participant <- as.factor(Exp7data$participant)
 
 ```{r}
 include_graphics(here("Figures", "Experiment flow.png"))
+include_graphics(here("Figures", "Experiment design.png"))
+
 ```
 
 *The following factors(Distance, Response Type) were computed with all these trials, without excluding blocks since learn and test trials were intermixed.*
+
+
 
 ### Data preparation and cleaning ###
 
@@ -154,6 +158,13 @@ pander(summary(Exp7data$RT_io), style = "rmarkdown", caption = "Mean RTs after r
 
 
 ## Previous Occurence Analysis : Distance & Response Type
+
+
+**Visual representation of Previous Occurence**
+```{r}
+include_graphics(here("Figures", "prev occurence.png"))
+```
+
 
 ### 1. Distance
 
@@ -273,8 +284,6 @@ raw.data$Zval=scale(raw.data$val, scale=FALSE)
 raw.data$Zprevious_rm=scale(raw.data$previous_rm, scale=F)
 raw.data$ZDistance=scale(raw.data$Distance, scale=F)
 
-summary(raw.data$Distance)
-
 ```
 
 
@@ -349,7 +358,7 @@ So two models were run:
 
 ### 3a & b. Validity, ResponseType and Distance as predictors for all the RTs and after removing headstart block
 
- 
+ > Distance has a higher t statistic when the headstart block is removed, but still not a significant effect.
 
 
 ```{r m3, warning=FALSE, message=FALSE}
@@ -362,10 +371,10 @@ randomSlopes_m3<-lmer(RT_io~1+Zval + Zprevious_rm + ZDistance + (1+Zval +Zprevio
                       REML=F,
                       na.action = "na.omit")
 
-
+summary(randomSlopes_m3)
 #run model without head start trials (40 valid only trials)
-raw.datab<-raw.data %>%
-  subset(Block = c("HeadStart","SalMC"))
+raw.datab <- raw.data %>%
+  filter(Block %in% c("Experiment"))
 
 randomSlopes_m4<-lmer(RT_io~1+Zval + Zprevious_rm + ZDistance + (1+Zval +Zprevious_rm +ZDistance |participant), 
                       data=raw.datab, 
@@ -376,7 +385,7 @@ randomSlopes_m4<-lmer(RT_io~1+Zval + Zprevious_rm + ZDistance + (1+Zval +Zprevio
 tab_model(randomSlopes_m3,randomSlopes_m4, show.se = TRUE,show.stat = TRUE, show.ci = FALSE, 
                   dv.labels = c("Distance, \n Validity, Response for all RTs","Distance, \n Validity, Response for RTs (minus headtstart block)"))
 
-summary(randomSlopes_m3)
+
 summary(randomSlopes_m4)
 ```
 
@@ -384,7 +393,7 @@ summary(randomSlopes_m4)
 
 > The interaction between ResponseType and Distance is significant.
 
-*But the t-statistic is negative*, probably because most of the shorter distances are below the mean Distance `r table(raw.data$Distance)` that makes it below 0 while standardizing. 
+*But the t-statistic is negative*, probably because most of the shorter distances are below the mean Distance `r mean(raw.data$Distance)` that makes it below 0 while standardizing. 
 
 ```{r m5, message=FALSE, warning=FALSE}
 
@@ -394,30 +403,39 @@ randomSlopes_m5<-lmer(RT_io~1+Zval + Zprevious_rm*ZDistance + (1+Zval +Zprevious
                       REML=F,
                       na.action = "na.omit")
 
+summary(randomSlopes_m5)
 
 
 tab_model(randomSlopes_m5, show.se = TRUE,show.stat = TRUE, show.ci = FALSE, 
                   dv.labels = c("Interaction of Response and Distance"))
-summary(randomSlopes_m5)
+
 
 #Doublecheck meaning of distance*previous_rm interaction with Klaus: Due to bigger difference of RR vs RC fOr distance of 1 and distance of 2 (which fall below 0 when transformed to Z scores?) 
 #compared to more distant distances (there, the difference between RR and RC should be much smaller...)
 
 ```
 
-### MODEL COMPARISON
 
-```{r eval=FALSE}
 
+```{r eval = FALSE}
+#1. Comparing Model 3b with Model 3c (with interaction), so the model with interaction is a better fit
 pander(anova(randomSlopes_m4,randomSlopes_m5))
 
 ```
 
-### 4. Model 4: For the RTs of Salient Distractors (which show a validity effect)
+
+
+```{r eval = FALSE}
+#2. Comparing null model with the model with only validity
+pander(anova(randomIntercept_m0,randomSlopes_m1))
+```
+
+
+## 4. Model 4: For the RTs of Salient Distractors (which show a validity effect)
 
 So for this purpose the dataset was adjusted by removing all the learn trials and only assessing the test trials that had Salient distractors
 
-*However, the distance and Response Type variable computed earlier still took into consideration the intermixture of learn and test trials that the value of the variable still includes the factor of previous trials' condition being learn or not*
+*However, the distance and Response Type variable computed earlier still took into consideration the intermixture of learn and test trials such that the value of the variable still includes the factor of previous trials' condition being learn or not*
 
 ### 4a. Only with Validity as a predictor
 
@@ -443,7 +461,7 @@ summary(randomSlopes_m6)
 
 ### 4b. With ResponseType and Distance as predictors along with validity
 
-Distance does not signficantly moderate the RTs but Validity and Response Type do.
+These predictors do not significantly contribute to the effect.
 
 
 ```{r m7, message=FALSE, warning=FALSE}
