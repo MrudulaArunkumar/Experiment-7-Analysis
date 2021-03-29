@@ -232,7 +232,13 @@ pander(aggregate(data = Exp7learn_agg_o, RT_io~Validity,mean), style = "rmarkdow
 
 pander((t.test(data = Exp7learn_agg_o, RT_io~Validity,paired = TRUE)), style = 'rmarkdown', caption = "t test showing differences between valid and invalid trials-excluding outliers")
 
+valmain <- ggplot(Exp7learn_agg_o, aes(x=Validity, y=RT_io,color = Validity))+
+    geom_line(aes(group = 1),size = 1,stat = "summary", fun = "mean",show.legend = FALSE)+
+  geom_point(aes(group = Validity, shape = Validity),size = 1,stat = "summary", fun = "mean",show.legend = FALSE)+coord_cartesian(ylim = c(550,650))+
+  scale_color_manual(values = c("deepskyblue4","cadetblue3"))+
+  theme_classic()+ylab("ReactionTime (in ms)")+ggtitle("Mean of valid and invalid trials")
 
+ggsave(filename = here("Figures","Validity_main.png"),valmain)
 ```
 
 ## 2. Saliency Manipulation Check
@@ -249,6 +255,14 @@ Exp7SalCheck_o <- aggregate(data = Exp7data, RT_io~participant+Saliency, subset 
 # pander(t.test(RT_ifo~Saliency, data = Exp7SalCheck,paired=TRUE),style = "rmarkdown", caption = "t test result for saliency manipulation")
 
 pander(t.test(RT_io~Saliency, data = Exp7SalCheck_o,paired=TRUE),style = "rmarkdown", caption = "t test result for saliency manipulation, outliers")
+
+salmain <- ggplot(Exp7SalCheck_o, aes(x=Saliency, y=RT_io,color = Saliency))+
+    geom_line(aes(group = 1),size = 1,stat = "summary", fun = "mean",show.legend = FALSE)+
+  geom_point(aes(group = Saliency, shape = Saliency),size = 1,stat = "summary", fun = "mean",show.legend = FALSE)+coord_cartesian(ylim = c(600,700))+
+  scale_color_manual(values = c("deepskyblue4","cadetblue3"))+
+  theme_classic()+ylab("ReactionTime (in ms)")+ggtitle("Mean of trial with target behind salient vs non salient distractor")
+salmain
+ggsave(filename = here("Figures","Saliency_main.png"),salmain)
 ```
 
 ## 3. Interaction of Validity x Saliency in test trials
@@ -396,6 +410,7 @@ anova_t_ER <- ezANOVA(data = Exp7agg_ER,
 panderOptions('table.split.table',300)
 pander(anova_t_ER, style = 'rmarkdown', caption = "ANOVA results: ErrorRates in test trials", split.table = "Inf", missing = NA)
 
+anova_out(anova_t_ER)
 
 errorrateplot <-  ggplot(Exp7agg_ER, aes(x=Saliency, y=ErrorRate,color = Validity))+
     geom_line(aes(group = Validity, linetype = Validity),size = 1,stat = "summary", fun = "mean",)+
@@ -814,10 +829,13 @@ CA_Summary <- CA_Summary %>%
     )%>%
   drop_na(Condition)
 
+CA_Summary <- CA_Summary %>%
+  mutate(allSalaware = ifelse((Condition == "LearnGuess"|Condition == "test")& Saliency == "Salient"&TotalAcc == 100, 1, 0))
+
 CA_Summary$participant <- as.factor(CA_Summary$participant)
 CA_Summary$MeanAcc <- 100*CA_Summary$MeanAcc
 
-
+Exp7agg_A_o <- merge(Exp7agg_o,CA_Summary,by="participant")
 ```
 
 These plots show the overall accuracy of the participants in the guessing trials that were spread across the experiment.
@@ -876,39 +894,39 @@ This variable (allSalAware) is then included as a factor in the main aggregate d
 ```{r awareanalysis, include=FALSE, warning=FALSE, message=FALSE}
 # Exp7agg_A_fo <- merge(Exp7agg_fo,A_Summary,by="participant")
 Exp7agg_A_o <- merge(Exp7agg_o,A_Summary,by="participant")
-
+table(Exp7agg_A_o$allSalaware,Exp7agg_A_o$participant)
 ```
 
 ```{r awareanalysis0, message=FALSE, warning=FALSE, results='asis'}
 
 ##for outliers
 
-Exp7agg_A_o$allSalAware <- as.factor(Exp7agg_A_o$allSalAware)
+Exp7agg_A_o$allSalaware <- as.factor(Exp7agg_A_o$allSalaware)
 anova_VSA_o <- ezANOVA(data = Exp7agg_A_o,
         dv = RT_io,
         wid = participant,
-        within = .(Saliency,Validity),
-        between = .(allSalAware),
+        within = .(Saliency.x,Validity),
+        between = .(allSalaware),
         detailed = TRUE)
 
 pander(anova_VSA_o, style = 'rmarkdown', caption = "ANOVA results with awareness: Outliers excluded",split.table = "Inf", missing = NA)
 
 
-awareInter <- ggplot(Exp7agg_A_o, aes(x=Saliency, y=RT_io,color = Validity))+
+awareInter <- ggplot(Exp7agg_A_o, aes(x=Saliency.x, y=RT_io,color = Validity))+
     geom_line(aes(group = Validity, linetype = Validity),size = 1,stat = "summary", fun = "mean",)+
     geom_point(stat = "summary", fun = "mean", aes(shape = Validity))+
-  scale_color_manual(values = c("deepskyblue4","cadetblue3"))+facet_grid(.~allSalAware)+
-  theme_classic()+ylab("Reaction Time in ms")+ggtitle("Interaction of Validity and Saliency between participants with and without awareness")
+  scale_color_manual(values = c("deepskyblue4","cadetblue3"))+facet_grid(.~allSalaware)+coord_cartesian(ylim = c(550,600))+
+  theme_classic()+ylab("Reaction Time in ms")+ggtitle("Interaction of Validity and Saliency \n between participants with and without awareness")
 awareInter
 
-#ggsave(filename = here("Figures","interactionbwAwareness.png"),awareInter)
+#ggsave(filename = here("Figures","interactionbwAwareness_guessing.png"),awareInter)
 
 mean_aware_o <- ezStats(data = Exp7agg_A_o,
         dv = RT_io,
         wid = participant,
-        within_full = .(Saliency,Validity),
-        within = .(Saliency),
-        between = .(allSalAware),
+        within_full = .(Saliency.x,Validity),
+        within = .(Saliency.x),
+        between = .(allSalaware),
         diff=.(Validity),
         reverse_diff = TRUE)
 
