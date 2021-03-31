@@ -159,7 +159,7 @@ pander(round(table(Exp7data$ACC_trials)/nrow(Exp7data)*100, digits = 3), style =
 
 Upon implementing the exclusion criteria
 
--   Outliers (1.5x above third quartile) --\> used for the analysis
+-   Outliers (1.5x above third quartile) --rm> used for the analysis
 -   Farouts (3x)above third quartile)
 -   very Fast RTs, less than 200ms
 
@@ -238,7 +238,7 @@ valmain <- ggplot(Exp7learn_agg_o, aes(x=Validity, y=RT_io,color = Validity))+
   scale_color_manual(values = c("deepskyblue4","cadetblue3"))+
   theme_classic()+ylab("ReactionTime (in ms)")+ggtitle("Mean of valid and invalid trials")
 
-ggsave(filename = here("Figures","Validity_main.png"),valmain)
+#ggsave(filename = here("Figures","Validity_main.png"),valmain)
 ```
 
 ## 2. Saliency Manipulation Check
@@ -606,32 +606,11 @@ Exp7data <- Exp7data%>%select(ResponseRel, everything())
 
 ```
 
-### Previous Distractor
 
-Coding what the previous distractor was, whether it was the same or different. This variable is defined as Distractor Type, which has two factors: Distractor Change(RC) and Distractor Repetition (RR)
-
-*To be noted: This does not equate to validity* because the SRB trials can have the combination of invalid prime and invalid probe --\> Response Repetition which is confounded by Validity. So every valid probe can have both the Response Type factors based on whether the prime is valid or invalid
-
-```{r resptype, message=FALSE, warning=FALSE}
-
-Exp7data$DistractorRel <- NA
-Exp7data <- Exp7data %>%
-  mutate(SalD = ifelse(is.na(SalD)==TRUE,"None",SalD))
-
-
-
-
-Exp7data <- Exp7data %>% 
-  mutate(DistractorRel = ifelse((lag(Condition,1)=="learn" | lag(Condition,1)=="test") & (lag(SalD,1)==SalD|lag(NSalD,1)==NSalD|lag(Saliency,1)==Saliency) & lag(participant,1)==participant & is.na(DistractorRel)==TRUE, "DR", ifelse((lag(Condition,1)=="learn"|lag(Condition,1)=="test") & ((is.na(SalD)&lag(NSalD,1)!=NSalD)|(is.na(NSalD)&lag(SalD,1)!=SalD)|lag(SalD,1)!=SalD|lag(NSalD,1)!=NSalD) & lag(participant,1)==participant & is.na(DistractorRel)==TRUE, "DC", DistractorRel)))
-
-
-pander(table(Exp7data$DistractorRel),style = 'rmarkdown', caption = "Total number of DRs and DCs")
-
-Exp7data <- Exp7data%>%select(DistractorRel, everything())
-
-```
 
 ### Overshadowing within SRB
+
+**For more detailed analysis, check Exp7-BindingEffects analyses.html**
 
 Another variable(Overshadow SRB) can also be computed that checks for overshadowing effects within a SRB Trial. So in this case, naturally only the trials with last occurence Distance = 1 will be considered.
 
@@ -853,9 +832,59 @@ ggplot(CA_Summary, aes(x = Saliency))+
   ggtitle("Summary of Contingency Awareness scores \n split by Salient or non salient trial across conditions")
 ```
 
+### Using ACC Percentage in guessing trials as a factor
+
+Split the participants by median of Total Acc (50.00) and use that as a between subject factor.
+
+Different kind of factors were used:
+
+1. GuessSplit - Split at median Total Acc (50) where people scoring above 50 are ones with "high" awareness. *But here it would not average one value for each participant but classify high and low per condition*
+
+2. LTaware - Those participants with 100% accuracy in the learnguess trials or in the test trials
+
+3. allSalaware - Those participants with 100% accuracy only in the salient trials
+
+
+*While using TotalAcc as a continuous variable, it did not run the ANOVA due to imbalanced design*
+```{r message=FALSE, warning=FALSE}
+
+pander(summary(Exp7agg_A_o$TotalAcc),style = "rmarkdown", caption = "Summary statistics for Contingency guessing trials Accuracy")
+
+Exp7agg_A_o <- Exp7agg_A_o %>%
+  mutate(GuessSplit = ifelse(TotalAcc > 50, "high","low"))
+
+Exp7agg_A_o <- Exp7agg_A_o %>%
+  group_by(participant)%>%
+  mutate(Awarelevel = ifelse(mean(TotalAcc) > 50, "Aware","less Aware"))
+
+Exp7agg_A_o <- Exp7agg_A_o %>%
+  group_by(participant)%>%
+  mutate(LTware = ifelse((Condition == "LearnGuess" & TotalAcc == 100) | (Condition == "test" & TotalAcc == 100), "Aware","UnAware"))
+#table(Exp7agg_A_o$LAware)/16 #around 21 people with 100% Acc and 49 people without
+pander((table(Exp7agg_A_o$Awarelevel)/16),style = "rmarkdown", caption = "Number of people with high guessing scores")
+anova_VSg_o <- ezANOVA(data = Exp7agg_A_o,
+        dv = RT_io,
+        wid = participant,
+        within = .(Saliency.x,Validity),
+        between = .(Awarelevel),
+        detailed = TRUE)
+panderOptions('table.split.table',300)
+pander(anova_VSg_o)
+
+awareInterG <- ggplot(Exp7agg_A_o, aes(x=Saliency.x, y=RT_io,color = Validity))+
+    geom_line(aes(group = Validity, linetype = Validity),size = 1,stat = "summary", fun = "mean",)+
+    geom_point(stat = "summary", fun = "mean", aes(shape = Validity))+
+  scale_color_manual(values = c("deepskyblue4","cadetblue3"))+facet_grid(.~Awarelevel)+coord_cartesian(ylim = c(550,650))+
+  theme_classic()+ylab("Reaction Time in ms")+ggtitle("Interaction of Validity and Saliency \n between participants with and without awareness")
+awareInterG
+
+#ggsave(filename = here("Figures","InteractionwithCGguessplit.png"),awareInterG)
+```
+
+
 The difference between Accuracy of Guessing trials in the learn trials are as follows:
 
-1.  For the Guessing trials inthe learn block, the accuracy significantly differs between saliency
+1.  For the Guessing trials in the learn block, the accuracy significantly differs between saliency
 2.  For the Guessing trials at the end of the experiment resembling test trials, they do not differ significantly but almost $p = 0.07$ *two-sided*.
 
 ```{r}
@@ -885,48 +914,48 @@ A_Summary <- AWarepp %>%
   dplyr::summarise(SaliencyAware = sum(Dicho, na.rm=TRUE))%>%
   filter(participant != 10)
 
-A_Summary$allSalAware <- ifelse(A_Summary$SaliencyAware == "2" ,1,0)
-pander(table(A_Summary$allSalAware), style = "rmarkdown", caption = "Number of participants with awareness(1)")
+A_Summary$AwareQSal <- ifelse(A_Summary$SaliencyAware == "2" ,1,0)
+pander(table(A_Summary$AwareQSal), style = "rmarkdown", caption = "Number of participants with awareness(1)")
 ```
 
-This variable (allSalAware) is then included as a factor in the main aggregate df containing the validity and saliency effect for test trials. There is a significant interaction between validity and saliency similar to the standard analysis. While splitting the data for people with and without awareness, the people with awareness show a significant interaction between validity and saliency and those without awareness do not show any effect.
+This variable (AwareQSal) is then included as a factor in the main aggregate df containing the validity and saliency effect for test trials. There is a significant interaction between validity and saliency similar to the standard analysis. While splitting the data for people with and without awareness, the people with awareness show a significant interaction between validity and saliency and those without awareness do not show any effect.
 
 ```{r awareanalysis, include=FALSE, warning=FALSE, message=FALSE}
 # Exp7agg_A_fo <- merge(Exp7agg_fo,A_Summary,by="participant")
-Exp7agg_A_o <- merge(Exp7agg_o,A_Summary,by="participant")
-table(Exp7agg_A_o$allSalaware,Exp7agg_A_o$participant)
+Exp7agg_AQ_o <- merge(Exp7agg_o,A_Summary,by="participant")
+
 ```
 
 ```{r awareanalysis0, message=FALSE, warning=FALSE, results='asis'}
 
 ##for outliers
 
-Exp7agg_A_o$allSalaware <- as.factor(Exp7agg_A_o$allSalaware)
-anova_VSA_o <- ezANOVA(data = Exp7agg_A_o,
+Exp7agg_AQ_o$AwareQSal <- as.factor(Exp7agg_AQ_o$AwareQSal)
+anova_VSAq_o <- ezANOVA(data = Exp7agg_AQ_o,
         dv = RT_io,
         wid = participant,
-        within = .(Saliency.x,Validity),
-        between = .(allSalaware),
+        within = .(Saliency,Validity),
+        between = .(AwareQSal),
         detailed = TRUE)
 
-pander(anova_VSA_o, style = 'rmarkdown', caption = "ANOVA results with awareness: Outliers excluded",split.table = "Inf", missing = NA)
+pander(anova_VSAq_o, style = 'rmarkdown', caption = "ANOVA results with awareness: Outliers excluded",split.table = "Inf", missing = NA)
 
 
-awareInter <- ggplot(Exp7agg_A_o, aes(x=Saliency.x, y=RT_io,color = Validity))+
+awareQInter <- ggplot(Exp7agg_AQ_o, aes(x=Saliency, y=RT_io,color = Validity))+
     geom_line(aes(group = Validity, linetype = Validity),size = 1,stat = "summary", fun = "mean",)+
     geom_point(stat = "summary", fun = "mean", aes(shape = Validity))+
-  scale_color_manual(values = c("deepskyblue4","cadetblue3"))+facet_grid(.~allSalaware)+coord_cartesian(ylim = c(550,600))+
+  scale_color_manual(values = c("deepskyblue4","cadetblue3"))+facet_grid(.~AwareQSal)+coord_cartesian(ylim = c(550,650))+
   theme_classic()+ylab("Reaction Time in ms")+ggtitle("Interaction of Validity and Saliency \n between participants with and without awareness")
-awareInter
+awareQInter
 
-#ggsave(filename = here("Figures","interactionbwAwareness_guessing.png"),awareInter)
+ggsave(filename = here("Figures","interactionbwAwareness_Questions.png"),awareQInter)
 
-mean_aware_o <- ezStats(data = Exp7agg_A_o,
+mean_aware_o <- ezStats(data = Exp7agg_AQ_o,
         dv = RT_io,
         wid = participant,
-        within_full = .(Saliency.x,Validity),
-        within = .(Saliency.x),
-        between = .(allSalaware),
+        within_full = .(Saliency,Validity),
+        within = .(Saliency),
+        between = .(AwareQSal),
         diff=.(Validity),
         reverse_diff = TRUE)
 

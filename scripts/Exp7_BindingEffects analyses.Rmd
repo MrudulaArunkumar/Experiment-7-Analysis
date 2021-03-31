@@ -1,6 +1,6 @@
 ---
 title: "Binding level Analysis of Experiment 7"
-author: "Carina"
+author: "Carina & Mrudula"
 date: "`r format(Sys.time(), '%d %B,%Y')`"
 output:
   html_document:
@@ -24,7 +24,7 @@ Participant 10 is removed from the dataset due to high number of errors (~25%)
 
 
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 library(plyr)
 library(lme4)
 library(lmerTest)
@@ -72,7 +72,7 @@ pander(table(raw.data$binding_sequence), style = "rmarkdown", caption = "Number 
 
 ```
 
-### Introducing the factors used for analysis
+## Introducing the factors used for analysis ##
 
 1. **DRel (Distractor Relation)**: 
 
@@ -136,7 +136,7 @@ pander(table(raw.data$Validity), style = "rmarkdown", caption = "Number of valid
 
 
 
-### Creating aggregate files
+### Creating aggregate files ###
 
 The following aggregate files are created:
 
@@ -154,26 +154,27 @@ agg.err <- aggregate(data = raw.data, err ~ DRel + RRel + ProbeSaliency  + parti
 
 #
 #limit analyses only to valid test trials to avoid problem of too many missings
-raw.data<-subset(raw.data, subset=(raw.data$Validity=="valid"))
-OnlyVal_agg.out<- aggregate(data = raw.data, RT_io ~ DRel + RRel + ProbeSaliency  + participant, mean)
+raw.dataV<-subset(raw.data, subset=(raw.data$Validity=="valid"))
+OnlyVal_agg.out<- aggregate(data = raw.dataV, RT_io ~ DRel + RRel + ProbeSaliency  + participant, mean)
 #too many empty cells to carry out ANOVA -> Model at the trial level to circumvent problem of missing data
 
 #write.csv2(OnlyVal_agg.out, file="Data/val_agg_out.csv", row.names = F)
 
 ```
 
+# ANOVAs
 
-## 1. ANOVA: DRel, RRel, Probe saliency for binding trials with RTs
+## 1. ANOVA: DRel, RRel, Probe saliency for binding trials with RTs ##
 
 > The three way interaction is significant, $F = 8.10, p = 0.005$
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 anova1 <- ezANOVA(data = agg.out,
                   dv = RT_io,
                   wid = .(participant),
                   within = .(DRel,RRel,ProbeSaliency),
                   detailed = TRUE)
-
+panderOptions('table.split.table',300)
 pander(anova1, style = "rmarkdown", caption = "ANOVA (RT): for binding trials with DRel, RRel, ProbeSaliency")
 
 plotDRRR <- ggplot(data = agg.out,aes(x = RRel, y = RT_io, color = DRel))+
@@ -190,13 +191,14 @@ plotDRRR
 The DRel X RRel effects are significant for the salient trials. Below are the ANOVA results only with salient trials and the mean differences in the binding/retrieval effects.
 There is a facilitation when the Distractor repeats (when the response repeats) of 39ms which is significant but the cost is not significant.
 
-```{r}
+```{r warning=FALSE, message=FALSE}
 SalientProbe<-subset(agg.out, subset=(ProbeSaliency=="salient"))
 sal<-ezANOVA( data=SalientProbe,
                 dv=RT_io,
                 wid = participant,
                 within= .(DRel, RRel),
                 detailed=T)
+panderOptions('table.split.table',300)
 pander(sal, style = "rmarkdown", caption = "Only for salient trials")
 
 meansal <- ezStats(data=SalientProbe,
@@ -221,7 +223,7 @@ pander(t.test(RT_io ~ DRel, data =SalientProbe, subset =(RRel=="RC"), paired=TRU
 
 ..and the effects for only the non salient trials are not significant.
 
-```{r }
+```{r warning=FALSE, message=FALSE}
 
 NonSalientProbe<-subset(agg.out, subset=(ProbeSaliency=="nonsalient"))
 nonsal<-ezANOVA( data=NonSalientProbe,
@@ -229,6 +231,7 @@ nonsal<-ezANOVA( data=NonSalientProbe,
                 wid = participant,
                 within= .(DRel, RRel),
                 detailed=T)
+panderOptions('table.split.table',300)
 pander(nonsal, style = "rmarkdown", caption = "ANOVA for only non salient trials")
 
 ```
@@ -239,13 +242,13 @@ pander(nonsal, style = "rmarkdown", caption = "ANOVA for only non salient trials
 > The three way interaction is significant, $F = 4.91,p = 0.03$. The two way interaction between DRel X RRel is also significant, $F = 4.46, p = 0.03$
 
 
-```{r}
+```{r warning=FALSE, message=FALSE}
 anova2 <- ezANOVA(data = agg.err,
                   dv = err,
                   wid = .(participant),
                   within = .(DRel,RRel,ProbeSaliency),
                   detailed = TRUE)
-
+panderOptions('table.split.table',300)
 pander(anova2, style = "rmarkdown", caption = "ANOVA (ERs): for binding trials DRel, RRel, Probe Saliency")
 ```
 
@@ -253,13 +256,14 @@ Similar to RTs, while looking at the salient trials alone, the DRel x RRel effec
 Below are the ANOVA results along with the t-test results for each of the Response Relation to tease apart the facilitations and costs.
 The facilitation is marginally significant but the cost is not significant. 
 
-```{r}
+```{r warning=FALSE, message=FALSE}
 SalientProbeER<-subset(agg.err, subset=(ProbeSaliency=="salient"))
 salER<-ezANOVA( data=SalientProbeER,
                 dv=err,
                 wid = participant,
                 within= .(DRel, RRel),
                 detailed=T)
+panderOptions('table.split.table',300)
 pander(salER, style = "rmarkdown", caption = "Only for salient trials")
 
 meansalER <- ezStats(data=SalientProbeER,
@@ -269,7 +273,7 @@ meansalER <- ezStats(data=SalientProbeER,
         within_full = .(DRel, RRel),
         diff=.(DRel),
         reverse_diff = T)
-
+panderOptions('table.split.table',300)
 pander(meansalER, style = "rmarkdown", caption = "Mean differences between DC - DR for Response Relation only for salient trials")
 
 #t.tests:
@@ -282,287 +286,128 @@ pander(t.test(RT_io ~ DRel, data =SalientProbe, subset =(RRel=="RC"), paired=TRU
 #cost ns
 ```
 
+## MULTI LEVEL MODELLING
 
-
+....to be discussed and finalized
+ 
+ 
 ```{r}
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-#analysis at the trial level####
-
-table(raw.data$DRel)
-table(raw.data$RRel)
-table(raw.data$ProbeSaliency)
-table(raw.data$Validity)
+# #analysis at the trial level####
+# 
+# pander(table(raw.dataV$DRel),style = "rmarkdown", caption = "Distractor Relations with only Valid probes")
+# pander(table(raw.dataV$RRel),style = "rmarkdown", caption = "Response Relations with only Valid probes")
+# pander(table(raw.dataV$ProbeSaliency),style = "rmarkdown", caption = "Probe saliency with only Valid probes")
+# pander(table(raw.dataV$Validity),style = "rmarkdown", caption = "Valid and invalid Probes")
 
 #create numeric variables for Multilevel analysis
-
-raw.data$drel<-ifelse(raw.data$DRel=="DR", 1, -1)
-table(raw.data$drel, raw.data$DRel)
-summary(raw.data$drel)
-
-raw.data$probesal<-ifelse(raw.data$ProbeSaliency=="salient", 1, -1)
-table(raw.data$probesal, raw.data$ProbeSaliency)
-summary(raw.data$probesal)
-
-raw.data$val<-ifelse(raw.data$Validity=="valid", 1, -1)
-table(raw.data$val, raw.data$Validity)
-summary(raw.data$val) #but already all invalid trials are removed
-
-raw.data$rrel<-ifelse(raw.data$RRel=="RR", 1, 2)
-table(raw.data$rrel, raw.data$RRel)
-
-
-#centering within person for RREl
-#previous_rm
-means.rrel <- aggregate(data = raw.data, rrel ~ participant, mean)
-names(means.rrel)[2]<-"rrel_mean"
-
-raw.data<-merge (raw.data, means.rrel, by="participant")
-
-raw.data$rrel_cwp <- raw.data$rrel-raw.data$rrel_mean
-summary(raw.data$rrel_cwp)
+# 
+# raw.dataV$drel<-ifelse(raw.dataV$DRel=="DR", 1, -1)
+# # table(raw.dataV$drel, raw.dataV$DRel)
+# # summary(raw.dataV$drel)
+# 
+# raw.dataV$probesal<-ifelse(raw.dataV$ProbeSaliency=="salient", 1, -1)
+# #table(raw.dataV$probesal, raw.dataV$ProbeSaliency)
+# #summary(raw.dataV$probesal)
+# 
+# raw.dataV$val<-ifelse(raw.dataV$Validity=="valid", 1, -1)
+# #table(raw.dataV$val, raw.dataV$Validity)
+# #summary(raw.dataV$val) #but already all invalid trials are removed
+# 
+# raw.dataV$rrel<-ifelse(raw.dataV$RRel=="RR", 1, 2)
+# table(raw.dataV$rrel, raw.dataV$RRel)
+# 
+# 
+# #centering within person for RREl
+# #previous_rm
+# means.rrel <- aggregate(data = raw.dataV, rrel ~ participant, mean)
+# names(means.rrel)[2]<-"rrel_mean"
+# 
+# raw.dataV<-merge (raw.dataV, means.rrel, by="participant")
+# 
+# raw.dataV$rrel_cwp <- raw.dataV$rrel-raw.dataV$rrel_mean
+# #summary(raw.dataV$rrel_cwp)
 
 #random slopes model, Probe RT
-#RT
-randomSlopes_m1<-lmer(RT_io~1+probesal*drel*rrel_cwp + (1+probesal*drel*rrel_cwp|participant), 
-                      data=raw.data, 
-                      REML=F,
-                      na.action = "na.omit")
+# #RT
+# randomSlopes_m1<-lmer(RT_io~1+probesal*drel*rrel_cwp + (1+probesal*drel*rrel_cwp|participant), 
+#                       data=raw.dataV, 
+#                       REML=F,
+#                       na.action = "na.omit")
+# tab_model(randomSlopes_m1, show.se = TRUE,show.stat = TRUE, show.ci = FALSE)
+# summary(randomSlopes_m1)
+# #threeway interaction sign
 
-summary(randomSlopes_m1)
-#threeway interaction sign
-
-#errors
-
-randomSlopes_m1_err<-lmer(err~1+probesal*drel*rrel_cwp + (1+probesal*drel*rrel_cwp|participant), 
-                      data=raw.data, 
-                      REML=F,
-                      na.action = "na.omit")
-
-summary(randomSlopes_m1_err)
-#threeway interaction sign
-#so far: MLM analyses correspond to analyses at the aggregated level!
-
-#+++++++++++++++++++++++
-#incorporate test trial validity to the model
-
-#RT
-randomSlopes_m2<-lmer(RT_io~1+probesal*drel*rrel_cwp*val + (1+probesal*drel*rrel_cwp*val|participant), 
-                      data=raw.data, 
-                      REML=F,
-                      na.action = "na.omit")
-
-summary(randomSlopes_m2)
-#threeway interaction sign
-
-#errors
-
-randomSlopes_m2_err<-lmer(err~1+probesal*drel*rrel_cwp*val + (1+probesal*drel*rrel_cwp*val|participant), 
-                          data=raw.data, 
-                          REML=F,
-                          na.action = "na.omit")
-
-summary(randomSlopes_m2_err)
-
-
-#test model fit
-randomIntercept_m0<-lmer(RT_io~1 + (1|participant), 
-                         data=raw.data, 
-                         REML=F,
-                         na.action = "na.omit")
-summary(randomIntercept_m0)
-
-randomIntercept_m0_err<-lmer(err~1 + (1|participant), 
-                             data=raw.data, 
-                             REML=F,
-                             na.action = "na.omit")
-summary(randomIntercept_m0_err)
-
-#Model comparison
-#Model 1 vs Model0
-
-anova(randomIntercept_m0, randomSlopes_m1) #sign
-anova(randomIntercept_m0_err, randomSlopes_m1_err) #sign
-
-#Model 2 vs model 1
-anova(randomSlopes_m1, randomSlopes_m2) #no sign model improvement
-anova(randomSlopes_m1_err, randomSlopes_m2_err) #no sign model improvement
-
-#check for confunds in the factorial design####
-table(raw.data$DRel, raw.data$RRel )
-round(table(raw.data$DRel, raw.data$RRel )/nrow(raw.data)*100, digits = 2)
-
-table(raw.data$DRel, raw.data$RRel, raw.data$ProbeSaliency )
-round(table(raw.data$DRel, raw.data$RRel, raw.data$ProbeSaliency )/nrow(raw.data)*100, digits = 1)
-
-round(table(raw.data$DRel, raw.data$RRel, raw.data$ProbeSaliency, raw.data$Validity )/nrow(raw.data)*100, digits = 1)
-
-table(raw.data$DRel, raw.data$RRel, raw.data$Validity, raw.data$ProbeSaliency) 
-
-table(raw.data$DRel, raw.data$RRel, raw.data$Validity) 
-round(table(raw.data$DRel, raw.data$RRel, raw.data$Validity) /nrow(raw.data)*100, digits = 1)
-
-
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-#Analyze Binding effect at the aggragted level, Probe performance as a function of ProbeSaliency, DRel, RREl####
-#ANOVA
-
-data<-read.csv2(file="Data/agg_out.csv")
-data<-read.csv2(file="Data/agg_err.csv")
-
-data<-OnlyVal_agg.out
-
-data$DRel<-as.factor(data$DRel)
-data$RRel<-as.factor(data$RRel)
-data$participant<-as.factor(data$participant)
-data$ProbeSaliency<-as.factor(data$ProbeSaliency)
-#when validity is included: 16 cells, all participants have missing data
+# #errors
+# 
+# randomSlopes_m1_err<-lmer(err~1+probesal*drel*rrel_cwp + (1+probesal*drel*rrel_cwp|participant), 
+#                       data=raw.dataV, 
+#                       REML=F,
+#                       na.action = "na.omit")
+# 
+# summary(randomSlopes_m1_err)
+# #threeway interaction sign
+# #so far: MLM analyses correspond to analyses at the aggregated level!
+# 
+# #+++++++++++++++++++++++
+# #incorporate test trial validity to the model
+# 
+# #RT
+# randomSlopes_m2<-lmer(RT_io~1+probesal*drel*rrel_cwp*val + (1+probesal*drel*rrel_cwp*val|participant), 
+#                       data=raw.dataV, 
+#                       REML=F,
+#                       na.action = "na.omit")
+# tab_model(randomSlopes_m2, show.se = TRUE,show.stat = TRUE, show.ci = FALSE)
+# summary(randomSlopes_m2)
+# #threeway interaction sign
+# 
+# #errors
+# 
+# randomSlopes_m2_err<-lmer(err~1+probesal*drel*rrel_cwp*val + (1+probesal*drel*rrel_cwp*val|participant), 
+#                           data=raw.dataV, 
+#                           REML=F,
+#                           na.action = "na.omit")
+# 
+# summary(randomSlopes_m2_err)
+# 
+# 
+# #test model fit
+# randomIntercept_m0<-lmer(RT_io~1 + (1|participant), 
+#                          data=raw.dataV, 
+#                          REML=F,
+#                          na.action = "na.omit")
+# summary(randomIntercept_m0)
+# 
+# randomIntercept_m0_err<-lmer(err~1 + (1|participant), 
+#                              data=raw.dataV, 
+#                              REML=F,
+#                              na.action = "na.omit")
+# summary(randomIntercept_m0_err)
+# 
+# #Model comparison
+# #Model 1 vs Model0
+# 
+# anova(randomIntercept_m0, randomSlopes_m1) #sign
+# anova(randomIntercept_m0_err, randomSlopes_m1_err) #sign
+# 
+# #Model 2 vs model 1
+# anova(randomSlopes_m1, randomSlopes_m2) #no sign model improvement
+# anova(randomSlopes_m1_err, randomSlopes_m2_err) #no sign model improvement
+# 
+# #check for confunds in the factorial design####
+# table(raw.dataV$DRel, raw.dataV$RRel )
+# round(table(raw.dataV$DRel, raw.dataV$RRel )/nrow(raw.dataV)*100, digits = 2)
+# 
+# table(raw.dataV$DRel, raw.dataV$RRel, raw.dataV$ProbeSaliency )
+# round(table(raw.dataV$DRel, raw.dataV$RRel, raw.dataV$ProbeSaliency )/nrow(raw.dataV)*100, digits = 1)
+# 
+# round(table(raw.dataV$DRel, raw.dataV$RRel, raw.dataV$ProbeSaliency, raw.dataV$Validity )/nrow(raw.dataV)*100, digits = 1)
+# 
+# table(raw.dataV$DRel, raw.dataV$RRel, raw.dataV$Validity, raw.dataV$ProbeSaliency) 
+# 
+# table(raw.dataV$DRel, raw.dataV$RRel, raw.dataV$Validity) 
+# round(table(raw.dataV$DRel, raw.dataV$RRel, raw.dataV$Validity) /nrow(raw.dataV)*100, digits = 1)
+# 
 
 
-table(data$participant)
-
-
-#RT####
-ezout<-ezANOVA( data=data,
-                dv=RT_io,
-                wid = participant,
-                within= .(DRel, RRel, ProbeSaliency),
-                detailed=T)
-anova_out(ezout)
-#3way interaction is significant
-
-#plot
-#Grafik 
-plot_RT<-ezPlot(data=data,
-       dv=RT_io, 
-       wid=participant, 
-       within = .(DRel, RRel, ProbeSaliency), 
-       x = RRel, 
-       levels = list(RRel = list(new_order = c('RR', 'RC'))),
-       split = DRel, 
-       col = ProbeSaliency, 
-       y_lab ='ProbeRT (ms)',
-       do_bars =FALSE)+
-  theme_bw()+ylim(500,600)
-
-plotDRRR <- ggplot(data = data,aes(x = RRel, y = RT_io, color = DRel))+
-  geom_line(aes(group = DRel, linetype = DRel),size = 1,stat = "summary", fun = "mean",)+
-  geom_point(stat = "summary", fun = "mean", aes(shape = DRel))+
-  facet_grid(.~ProbeSaliency)+labs(color  = "Distractor Relation", linetype = "Distractor Relation", shape = "Distractor Relation")+
-  scale_color_manual(values = c("deepskyblue4","cadetblue3"))+
-  coord_cartesian(ylim = c(500,600))+
-  theme_classic()+ylab("ProbeRT (in ms)")+xlab("Response Relation")+ggtitle("Interaction of Response Relation and \n Distractor Relation across Saliency")
-plotDRRR
-
-
-#graph shows standard binding for salient D, reversed pattern for nonsalient D
-#follow up
-
-SalientProbe<-subset(data, subset=(ProbeSaliency=="salient"))
-ezout<-ezANOVA( data=SalientProbe,
-                dv=RT_io,
-                wid = participant,
-                within= .(DRel, RRel),
-                detailed=T)
-anova_out(ezout)
-#DRelxRREl interaction sign
-
-ezStats(data=SalientProbe,
-        dv=RT_io,
-        wid = participant,
-        within = .(RRel),
-        within_full = .(DRel, RRel),
-        diff=.(DRel),
-        reverse_diff = T)
-
-#t.tests:
-t<- t.test(RT_io ~ DRel, data =SalientProbe, subset =(RRel=="RR"), paired=TRUE, alternative="greater" )
-t_out(t, d.corr=FALSE)
-#facilitation sign
-
-t<- t.test(RT_io ~ DRel, data =SalientProbe, subset =(RRel=="RC"), paired=TRUE, alternative="less" )
-t_out(t, d.corr=FALSE)
-#cost ns
-
-NonSalientProbe<-subset(data, subset=(ProbeSaliency=="nonsalient"))
-ezout<-ezANOVA( data=NonSalientProbe,
-                dv=RT_io,
-                wid = participant,
-                within= .(DRel, RRel),
-                detailed=T)
-anova_out(ezout)
-#DRelxRrel ns
-
-#Errors####
-ezout<-ezANOVA( data=data,
-                dv=err,
-                wid = participant,
-                within= .(DRel, RRel, ProbeSaliency),
-                detailed=T)
-anova_out(ezout)
-#threeway iA sign
-
-plotDRRR_err <- ggplot(data = data,aes(x = RRel, y = err, color = DRel))+
-  geom_line(aes(group = DRel, linetype = DRel),size = 1,stat = "summary", fun = "mean",)+
-  geom_point(stat = "summary", fun = "mean", aes(shape = DRel))+
-  facet_grid(.~ProbeSaliency)+labs(color  = "Distractor Relation", linetype = "Distractor Relation", shape = "Distractor Relation")+
-  scale_color_manual(values = c("deepskyblue4","cadetblue3"))+
-  coord_cartesian(ylim = c(0,0.15))+
-  theme_classic()+ylab("ProbeErrorRate")+xlab("Response Relation")+ggtitle("Interaction of Response Relation and \n Distractor Relation across Saliency")
-plotDRRR_err
-
-#ggsave("Figures/ProbeSaliency x DRel x RRel_RT.png")
-ggsave(filename = here("Figures","ProbeSalDRelRRel_err.png"),plotDRRR_err)
-
-#plot
-plot_err<-ezPlot(data=data,
-       dv=err, 
-       wid=participant, 
-       within = .(DRel, RRel, ProbeSaliency), 
-       x = RRel,
-       levels = list(RRel = list(new_order = c('RR', 'RC'))),
-       split = DRel, 
-       y_lab ='Probe error rate',
-       col = ProbeSaliency, 
-       do_bars =FALSE)+
-  theme_bw() 
-print(plot_err)
-ggsave("Figures/ProbeSaliency x DRel x RRel_errors.png")
-
-#graph shows standard binding for salient D, reversed pattern for nonsalient D
-#follow up
-
-SalientProbe<-subset(data, subset=(ProbeSaliency=="salient"))
-ezout<-ezANOVA( data=SalientProbe,
-                dv=err,
-                wid = participant,
-                within= .(DRel, RRel),
-                detailed=T)
-anova_out(ezout)
-#DRelxRREl interaction sign
-
-ezStats(data=SalientProbe,
-        dv=err,
-        wid = participant,
-        within = .(RRel),
-        within_full = .(DRel, RRel),
-        diff=.(DRel),
-        reverse_diff = T)
-
-#t.tests:
-t<- t.test(err ~ DRel, data =SalientProbe, subset =(RRel=="RR"), paired=TRUE, alternative="greater" )
-t_out(t, d.corr=FALSE)
-#facilitation marginal sign in one.taield test
-
-t<- t.test(err ~ DRel, data =SalientProbe, subset =(RRel=="RC"), paired=TRUE, alternative="less" )
-t_out(t, d.corr=FALSE)
-#cost sign
-
-NonSalientProbe<-subset(data, subset=(ProbeSaliency=="nonsalient"))
-ezout<-ezANOVA( data=NonSalientProbe,
-                dv=err,
-                wid = participant,
-                within= .(DRel, RRel),
-                detailed=T)
-anova_out(ezout)
-#DRelxRrel ns
 ```
