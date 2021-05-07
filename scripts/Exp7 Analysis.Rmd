@@ -859,7 +859,7 @@ Exp7agg_A_o <- Exp7agg_A_o %>%
 
 Exp7agg_A_o <- Exp7agg_A_o %>%
   group_by(participant)%>%
-  mutate(LTware = ifelse((Condition == "LearnGuess" & TotalAcc == 100) | (Condition == "test" & TotalAcc == 100), "Aware","UnAware"))
+  mutate(LSAware = ifelse((Condition == "LearnGuess" & Saliency == "Saliency" & TotalAcc > 75) "Aware","UnAware"))
 #table(Exp7agg_A_o$LAware)/16 #around 21 people with 100% Acc and 49 people without
 pander((table(Exp7agg_A_o$Awarelevel)/16),style = "rmarkdown", caption = "Number of people with high guessing scores")
 anova_VSg_o <- ezANOVA(data = Exp7agg_A_o,
