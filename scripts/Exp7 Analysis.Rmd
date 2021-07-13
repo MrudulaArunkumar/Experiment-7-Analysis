@@ -150,6 +150,7 @@ Exp7data$ErrorRate <- 1 - Exp7data$ACC_trials
 Summary of the overall Reaction Time, accuracy and Error Rate
 
 ```{r descriptives, echo=FALSE,results='asis'}
+pander(summary(Exp7data$Age), style = 'rmarkdown', caption = "Mean Age")
 
 pander(summary(Exp7data$RT_Trials), style = 'rmarkdown',caption = 'Mean RT')
 pander(table(Exp7data$ACC_trials),style = 'rmarkdown',caption = "Accuracy")
@@ -411,9 +412,9 @@ salvalmean <- ggplot(meanSalVal, aes(x=Saliency, y=Mean,fill = Validity))+
     # geom_line(aes(group = Saliency, linetype = Saliency),size = 1,stat = "summary", fun = "mean",)+
     # geom_point(stat = "summary", fun = "mean", aes(shape = Saliency))+
   scale_fill_manual(values = c("dodgerblue4","cadetblue3"))+coord_cartesian(ylim = c(500,600))+
-  theme_minimal()+ylab("ReactionTime (in ms)")+ggtitle("Mean of validity trials across Saliency") 
+  theme_minimal()+ylab("ReactionTime (in ms)")+theme(legend.text = element_text(size = 15), legend.title  = element_text(size = 15), axis.text.x = element_text(size = 15)) 
 salvalmean
-
+#ggsave(filename = here("Figures","Barplot_SalxVal_RT.png"),salvalmean)
 #Mean difference
 mean_valEffect_o <- ezStats(data = Exp7agg_o,
         dv = RT_io,
@@ -493,9 +494,10 @@ salvalmeanER <- ggplot(meanSalValER, aes(x=Saliency, y=Mean,fill = Validity))+
     # geom_line(aes(group = Saliency, linetype = Saliency),size = 1,stat = "summary", fun = "mean",)+
     # geom_point(stat = "summary", fun = "mean", aes(shape = Saliency))+
   scale_fill_manual(values = c("dodgerblue4","cadetblue3"))+coord_cartesian(ylim = c(0,0.15))+
-  theme_minimal()+ylab("ReactionTime (in ms)")+ggtitle("Mean of validity trials across Saliency") 
+  theme_minimal()+ylab("ReactionTime (in ms)")+theme(legend.text = element_text(size = 15), legend.title = element_text(size = 15), text = element_text(size = 15),axis.text.x = element_text(size = 15), axis.text.y = element_text(size = 15)) 
 salvalmeanER
 
+#ggsave(filename = here("Figures","Barplot_SalxVal_ER.png"),salvalmeanER,width=6,height = 4)
 ```
 
 ## 5. Inverse Efficiency scores and Balance Integration Score
@@ -588,8 +590,10 @@ salvalmeanIES <- ggplot(meanSalValIES, aes(x=Saliency, y=Mean,fill = Validity))+
     # geom_line(aes(group = Saliency, linetype = Saliency),size = 1,stat = "summary", fun = "mean",)+
     # geom_point(stat = "summary", fun = "mean", aes(shape = Saliency))+
   scale_fill_manual(values = c("dodgerblue4","cadetblue3"))+coord_cartesian(ylim = c(550,700))+
-  theme_minimal()+ylab("ReactionTime (in ms)")+ggtitle("Mean of validity trials across Saliency") 
+  theme_minimal()+ylab("ReactionTime (in ms)")+theme(legend.text = element_text(size = 15), legend.title = element_text(size = 15), text = element_text(size = 15),axis.text.x = element_text(size = 15), axis.text.y = element_text(size = 15))  
 salvalmeanIES
+
+#ggsave(filename = here("Figures","Barplot_salxval_IES.png"),salvalmeanIES)
 
 ```
 
@@ -908,7 +912,7 @@ correlQnoAcc <- ggplot(Exp7_CA, aes(x = CAResponse.corr, y = LearnGuessOrder))+
 correlQnoAcc
 
 CA_Summary <- Exp7_CA %>%
-  dplyr::group_by(participant,Saliency) %>%
+  dplyr::group_by(participant) %>%
   dplyr::summarise(LearnCA_Acc = (sum(CAResponse.corr, na.rm=TRUE)),
                    MeanLearnAcc = mean(CAResponse.corr, na.rm=TRUE)*100,
                    TestCA_Acc = (sum(CAResponse_2.corr, na.rm = TRUE)),
@@ -916,18 +920,16 @@ CA_Summary <- Exp7_CA %>%
                    LearnSalAcc = (sum(Learn_SalTotalAcc, na.rm = TRUE)),
                    LearnNonSalAcc = sum(Learn_NonSalTotalAcc, na.rm = TRUE),
                    TestSalAcc = sum(Test_SalTotalAcc, na.rm = TRUE),
-                   TestNonSalAcc = sum(Test_NonSalTotalAcc, na.rm = TRUE)) %>% drop_na(Saliency)
-
+                   TestNonSalAcc = sum(Test_NonSalTotalAcc, na.rm = TRUE)) 
 CA_Summary <- CA_Summary %>%
   group_by(participant)%>%
   mutate(TotalGuessingAcc = LearnCA_Acc + TestCA_Acc) %>%
   ungroup()
 
 
-
 CA_Summary$participant <- as.factor(CA_Summary$participant)
 
-Exp7Aware <- merge(Exp7agg_o,CA_Summary, by = c("participant","Saliency"))
+Exp7Aware <- merge(Exp7agg_o,CA_Summary, by = c("participant"))
 ```
 
 These plots show the overall accuracy of the participants in the guessing trials that were spread across the experiment.
@@ -990,14 +992,17 @@ For each trial however if they answered correctly, accuracy is marked as 2 and 1
 ```{r awareprep, include=FALSE}
 Exp7_CA$AwareResp.corr <- as.numeric(Exp7_CA$AwareResp.corr)
 AWarepp <- aggregate(data = Exp7_CA, AwareResp.corr~participant+AwareQ_loop.thisN+AwareQ,mean)
-AWarepp$Dicho <- ifelse(AWarepp$AwareQ_loop.thisN == "2" & AWarepp$AwareResp.corr == 2 | AWarepp$AwareQ_loop.thisN == "3" & AWarepp$AwareResp.corr== 2,1,0)
+AWarepp$AccDicho <- ifelse(AWarepp$AwareResp.corr == 2,1,0)
+AWarepp$SalDicho <- ifelse(AWarepp$AwareQ_loop.thisN == "2" & AWarepp$AwareResp.corr == 2 | AWarepp$AwareQ_loop.thisN == "3" & AWarepp$AwareResp.corr== 2,1,0)
 
 pander(table(AWarepp$AwareQ,AWarepp$AwareResp.corr), style = "rmarkdown", title = "Question number and the number of participants answering accurately (1) or not (0)")
 # table(AWarepp$Dicho)
 
 A_Summary <- AWarepp %>%
   dplyr::group_by(participant) %>%
-  dplyr::summarise(SaliencyAware = sum(Dicho, na.rm=TRUE))%>%
+  dplyr::summarise(TotalQAcc = sum(AccDicho, na.rm = TRUE),
+                   MeanQAcc = mean(AccDicho, na.rm = TRUE),
+                   SaliencyAware = sum(SalDicho, na.rm=TRUE))%>%
   filter(participant != 10)
 
 A_Summary$AwareQSal <- ifelse(A_Summary$SaliencyAware == "2" ,1,0)
@@ -1064,9 +1069,9 @@ AcccovarRTtest
 ### only Questions
 
 ```{r}
-anovaG_VS_Q <- aov(data = Exp7Aware, RT_io~Validity*Saliency*TestSalAcc)
+anovaG_VS_Q <- aov(data = Exp7Aware, RT_io~Validity*Saliency*SaliencyAware)
 
-pander(Anova(anovaG_VS_test, type = "III"), style = "rmarkdown", caption = "ANCOVA results with guessing accuracy (type 3 SS)")
+pander(Anova(anovaG_VS_Q, type = "III"), style = "rmarkdown", caption = "ANCOVA results with questionnaire (type 3 SS)")
 summary(anovaG_VS)
 
 
@@ -1093,7 +1098,7 @@ AcccovarRTtest
 
 ### Correltaion
 ```{r}
-cor.test(Exp7guess$TotalGuessingAcc, Exp7guess$SaliencyAware, method = "pearson")
+cor.test(Exp7Aware$TotalGuessingAcc, Exp7Aware$SaliencyAware, method = "pearson")
 
 correlACC <- ggplot(Exp7guess, aes(x = SaliencyAware, y = TotalGuessingAcc))+
   geom_jitter(aes(x = SaliencyAware, y = TotalGuessingAcc), color = "seagreen")+
@@ -1122,8 +1127,9 @@ This is then compared with the participants' responses in the Questionnaire at t
 #if learnguess salient is high label those participants as learnAware. To be used to check if they correlate with the AwareQ responses of those participants
 
 Exp7Aware$TotalSalAccuracy <- Exp7Aware$TestSalAcc + Exp7Aware$LearnSalAcc + Exp7Aware$SaliencyAware 
+Exp7Aware$TotalSalAccuracy <- (Exp7Aware$TotalSalAccuracy/14)*100
 Exp7Aware <- Exp7Aware %>%
-  mutate(AwarenessLevel = ifelse(TotalSalAccuracy >=10, "Aware", "Not Aware"))
+  mutate(AwarenessLevel = ifelse(TotalSalAccuracy >= 80, "Aware", "Not Aware"))
 
 
 ```
@@ -1175,7 +1181,7 @@ Exp7Aware <- Exp7Aware %>%
 #table(Exp7Aware$LAware)/16 #around 21 people with 100% Acc and 49 people without
 
 
-anova_VSg_o <- ezANOVA(data = Exp7guess,
+anova_VSg_o <- ezANOVA(data = Exp7Aware,
         dv = RT_io,
         wid = participant,
         within = .(Saliency,Validity),
@@ -1184,7 +1190,7 @@ anova_VSg_o <- ezANOVA(data = Exp7guess,
 panderOptions('table.split.table',300)
 pander(anova_VSg_o)
 
-awareInterG <- ggplot(Exp7guess, aes(x=Saliency, y=RT_io,color = Validity))+
+awareInterG <- ggplot(Exp7Aware, aes(x=Saliency, y=RT_io,color = Validity))+
     geom_line(aes(group = Validity, linetype = Validity),size = 1,stat = "summary", fun = "mean",)+
     geom_point(stat = "summary", fun = "mean", aes(shape = Validity))+
   scale_color_manual(values = c("deepskyblue4","cadetblue3"))+facet_grid(.~AwarenessLevel, labeller = label_wrap_gen(width = 10))+coord_cartesian(ylim = c(550,650))+xlab("Saliency")+
