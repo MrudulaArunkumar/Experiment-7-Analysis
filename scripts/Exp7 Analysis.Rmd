@@ -1,5 +1,5 @@
 ---
-title: "Exp7 Analysis"
+title: "Exp7 Analysis_Overshadowing and contingency awareness"
 author: "Mrudula Arunkumar"
 date: "`r format(Sys.time(), '%d %B,%Y')`"
 output:
@@ -16,7 +16,7 @@ output:
     toc: yes
 ---
 
-**This document contains the result memo of Experiment 7 aimed to explore overshadowing in a CL paradigm. It builds on from the design used in Experiment 5 and 6 that showed success in manipulating saliency and validity.But the interaction was not significant in those experiments, Hence, this experiment works towards that aspect by eliminating the contingency guessing trials in between and have two versions: one that resembles learn trials that are presented in the beginning after the headstart trials in a learn block. Then the other one is similar to the ones in the previous experiment that resemble test trials and appear at the end of the experiment.**
+**This document contains the result memo of Experiment 7 aimed to explore overshadowing in a contingency learning paradigm. It builds on from the design used in Experiment 5 and 6 that showed success in manipulating saliency and validity.But the interaction was not significant in those experiments, Hence, this experiment works towards that aspect by eliminating the contingency guessing trials in between that resembled the test trials and probably emphasized enough on the nonsalient distractors too. So this experiment has two versions of contingency guessing trials: one that resembles learn trials that are presented in the beginning after the headstart trials in a learn block. Then the other one is similar to the ones in the previous experiment that resemble test trials and appear at the end of the experiment.**
 
 ```{r loadlibs, include=FALSE, message=FALSE}
 
@@ -28,18 +28,19 @@ library(knitr)
 library(pander)
 library(rmarkdown)
 library(reshape2)
-library(here)
+library(here) #to avoid setwd &automatically assigns it based on the .here file which is created the first time the file is saved
 library(ggpubr)
 library(lme4)
 library(nlme)
 library(lmerTest)
 library(car)
+library(Rmisc)
 #set_here()
 
 Exp7data <- read.csv(here("Data", "Exp7_fulldataset.csv"))
 Exp7data$participant <- as.factor(Exp7data$participant)
 
-##exploratory removing participants with average performance
+##removing participants with average performance
 `%notin%` <- Negate(`%in%`)
 
 ```
@@ -69,6 +70,7 @@ include_graphics(here("Figures","X test trial.png"))
 -   Preparing the RT trial, by eliminating the square brackets and splitting it in cases where two keys were registered.
 -   Creating a column for Accuracy and Error Rate
 -   adding a Bonus column that computes the points received by each participant
+-   Since there were two blocks containing useful RT- one with the CA learn guessing block and other from the remaining experiment block, the RTs that were saved had to be separated and merged together as experiment RTs used for analysis
 
 ```{r cleaning, include=FALSE, message=FALSE}
 #removing unnecessary columns
@@ -78,11 +80,13 @@ Exp7data <- Exp7data %>%
 
 
 #adjusting RT
+# here the RTs are stored in two variables as the first block with the Contingency guessing trials like the learn trials were stored in the variable of CAresponse.
 Exp7data$mainRT <- Exp7data$TargetResp.rt
 Exp7data$Block1RT <- Exp7data$CAResponse.rt
 
-#splitting the RTs from main block
+#splitting the RTs from main experimental block
 Exp7data <- separate(Exp7data, col = mainRT, into = c("RTm_Trials", "RTm_secondary"), sep = ',')
+#sepearte the column as psychopy stores it with square brackets
 Exp7data$RTm_Trials <- Exp7data$RTm_Trials%>%
   str_replace_all("\\[|\\]","")%>%
   as.double(Exp7data$RTm_Trials)
@@ -93,6 +97,8 @@ Exp7data <- separate(Exp7data, col = Block1RT, into = c("RTb_Trials", "RTb_secon
 Exp7data$RTb_Trials <- Exp7data$RTb_Trials%>%
   str_replace_all("\\[|\\]","")%>%
   as.double(Exp7data$RTb_Trials)
+
+#psychopy saves it as decimal per second
 Exp7data$RTb_Trials <- 1000*(Exp7data$RTb_Trials)
 #removing RTs from guessing trials 
 Exp7data$RTb_Trials <- ifelse(Exp7data$Block == "CG Learn", NA, Exp7data$RTb_Trials)
@@ -122,10 +128,7 @@ Exp7Bonus$Perf <- na.omit(Exp7data$Performance)
 Exp7_CA <- Exp7data%>%
  filter(Target == "?" | str_detect(AwareQ, "Press"))
 
-
-
-
-
+#dropping rows cocntaining NA RTs (for example where there is a break)
 Exp7data <- Exp7data%>%drop_na(RT_Trials)
 
 #combining accuracy from first block and main block
@@ -139,8 +142,13 @@ Exp7data$ACCdummy <- ifelse(is.na(Exp7data$CAResponse.corr)==FALSE,2,Exp7data$AC
 Exp7data <- Exp7data %>%
   mutate(ACC_trials = ifelse((ACCdummy == 1),mainAcc,ifelse((ACCdummy == 2),Block1Acc,NA)))
 
-
+# creating a column for error Rate
 Exp7data$ErrorRate <- 1 - Exp7data$ACC_trials
+
+
+#to check outlier error rate
+Exp7ER <- aggregate(data = Exp7data,ErrorRate~participant,mean)
+#participant 10 has high error rate
 
 
 ```
@@ -165,6 +173,7 @@ Upon implementing the exclusion criteria
 -   very Fast RTs, less than 200ms
 
 ```{r exclusions, echo=FALSE, results='asis'}
+#incorrect trials RT are not used
 Exp7data$RT_Trials[Exp7data$ACC_trials==0] <- NA
 
 #removing outlier error rate participant
@@ -185,14 +194,15 @@ computeTukeys <- function(x){
 Exp7data <- ddply(Exp7data, .(participant), computeTukeys)
 
 #creating new column with RT trials after removing outliers/farouts
-Exp7data$RT_ifo <- Exp7data$RT_Trials
-Exp7data$RT_io <- Exp7data$RT_Trials
+Exp7data$RT_ifo <- Exp7data$RT_Trials #ifo refers to individual farouts
+Exp7data$RT_io <- Exp7data$RT_Trials #io refers to individual outliers
 
+#RTs above outliers and farouts and very fast RTs below 200ms
 Exp7data$RT_ifo[Exp7data$RT_ifo > Exp7data$Farouts|Exp7data$RT_ifo < 200] <- NA
 
 Exp7data$RT_io[Exp7data$RT_io > Exp7data$Outlier|Exp7data$RT_io < 200] <- NA
 
-
+#printing the summary table for RTs columns in rmarkdown style
 pander(summary(Exp7data$RT_ifo), style = 'rmarkdown', caption = "Summary of RT after removing Farouts")
 pander(summary(Exp7data$RT_io), style = 'rmarkdown', caption = "Summary of RT after removing Outliers")
 
@@ -203,7 +213,7 @@ pander(summary(Exp7data$RT_io), style = 'rmarkdown', caption = "Summary of RT af
 ## EXPERIMENT DESIGN
 
 ```{r flow}
-
+#displaying the pictures of the experiment flow
 include_graphics(here("Figures","Experiment flow.png"))
 include_graphics(here("Figures", "Experiment design.png"))
 
@@ -211,7 +221,7 @@ include_graphics(here("Figures", "Experiment design.png"))
 
 ## 1. Validity Manipulation check - Learn trials
 
-> There is a huge validity effect which is significant with a mean difference of \~50 ms
+> There is a huge validity effect which is significant with a mean difference of ~50 ms. This significant effect is also present in the Error Rate
 
 This shows that participants successfully picked up the association between the letters and the response keys
 
@@ -219,6 +229,7 @@ This shows that participants successfully picked up the association between the 
 ##creating an aggregate to check for validity effect
 #Exp7learn_agg <- aggregate(data = Exp7data, RT_ifo~participant+Validity,mean)
 
+#only choosing learn block to test for validity effect
 Exp7learn_agg_o <- aggregate(data = Exp7data, RT_io~participant+Validity,subset = (Condition == "learn"),mean)
 Exp7learn_agg_o_ER <- aggregate(data = Exp7data, ErrorRate~participant+Validity,subset = (Condition == "learn"),mean)
 
@@ -228,10 +239,10 @@ Exp7learn_agg_o_ER <- aggregate(data = Exp7data, ErrorRate~participant+Validity,
 
 
 
-#for outliers
+#for outliers exclusion RTs
 pander(aggregate(data = Exp7learn_agg_o, RT_io~Validity,mean), style = "rmarkdown", caption = "Table containing means of valid and invalid learn trials, outliers excluded")
 
-
+# ttest to check whether the difference is significant
 pander((t.test(data = Exp7learn_agg_o, RT_io~Validity,paired = TRUE)), style = 'rmarkdown', caption = "t test showing differences between valid and invalid trials-excluding outliers")
 
 
@@ -242,18 +253,21 @@ pander(aggregate(data = Exp7learn_agg_o_ER, ErrorRate~Validity,mean), style = "r
 
 pander((t.test(data = Exp7learn_agg_o_ER, ErrorRate~Validity,paired = TRUE)), style = 'rmarkdown', caption = "t test showing differences between valid and invalid trials, for ER")
 
+
+## PLotting the valid and invalid RTs
 valmain <- ggplot(Exp7learn_agg_o, aes(x=Validity, y=RT_io))+
     geom_line(aes(group = 1, color = "deepskyblue4"),size = 1,stat = "summary", fun = "mean",show.legend = FALSE)+
   geom_point(aes(group = Validity, color = "deepskyblue4"),size = 1,stat = "summary", fun = "mean",show.legend = FALSE)+coord_cartesian(ylim = c(550,650))+
   scale_color_manual(values = c("deepskyblue4","cadetblue3"))+
-  theme_classic()+ylab("ReactionTime (in ms)")+ggtitle("Mean of valid and invalid trials")
+  theme_classic()+ylab("ReactionTime (in ms)")+ggtitle("Mean of valid and invalid trials")+theme(text = element_text(size = 20))
 valmain
 
+# Plotting the valid and invalid ERs
 valmainER <- ggplot(Exp7learn_agg_o_ER, aes(x=Validity, y=ErrorRate))+
     geom_line(aes(group = 1, color = "deepskyblue4"),size = 1,stat = "summary", fun = "mean",show.legend = FALSE)+
   geom_point(aes(group = Validity, color = "deepskyblue4"),size = 1,stat = "summary", fun = "mean",show.legend = FALSE)+coord_cartesian(ylim = c(0,0.20))+
   scale_color_manual(values = c("deepskyblue4"))+
-  theme_classic()+ylab("Error Rate")+ggtitle("Mean of valid and invalid trials, ER")
+  theme_classic()+ylab("Error Rate")+ggtitle("Mean of valid and invalid trials, ER")+theme(text = element_text(size = 20))
 valmainER
 
 #ggsave(filename = here("Figures","Validity_main.png"),valmain)
@@ -262,24 +276,25 @@ valmainER
 
 ## 2. Saliency Manipulation Check
 
-This analysis checks whether the saliency manipulation worked by comparing the RT between trials where the number appeared in salient letters position vs non salient letter's position.
+This analysis checks whether the saliency manipulation worked by comparing the RT between trials where the number appeared in salient letter's position vs non salient letter's position.
 
 > There is a significant difference between trials where the target appeared at the salient letter position vs non salient letter's position ($p = 0.01*$)
 
 ```{r salcheck, echo=FALSE, message=FALSE,results='asis'}
 # Exp7SalCheck <- aggregate(data = Exp7data, RT_ifo~participant+Saliency, subset = (Block == "SalMC"), mean)
+##only selecting the trials from the saliency manipulation check, Sal MC, block
 Exp7SalCheck_o <- aggregate(data = Exp7data, RT_io~participant+Saliency, subset = (Block == "SalMC"), mean)
 
 # 
 # pander(t.test(RT_ifo~Saliency, data = Exp7SalCheck,paired=TRUE),style = "rmarkdown", caption = "t test result for saliency manipulation")
 
-pander(t.test(RT_io~Saliency, data = Exp7SalCheck_o,paired=TRUE),style = "rmarkdown", caption = "t test result for saliency manipulation, outliers")
+pander(t.test(RT_io~Saliency, data = Exp7SalCheck_o,paired=TRUE),style = "rmarkdown", caption = "t test result for saliency manipulation, outliers excluded")
 
 salmain <- ggplot(Exp7SalCheck_o, aes(x=Saliency, y=RT_io,color = Saliency))+
     geom_line(aes(group = 1),size = 1,stat = "summary", fun = "mean",show.legend = FALSE)+
   geom_point(aes(group = Saliency, shape = Saliency),size = 1,stat = "summary", fun = "mean",show.legend = FALSE)+coord_cartesian(ylim = c(600,700))+
   scale_color_manual(values = c("deepskyblue4","cadetblue3"))+
-  theme_classic()+ylab("ReactionTime (in ms)")+ggtitle("Mean of trial with target behind salient vs non salient distractor")
+  theme_classic()+ylab("ReactionTime (in ms)")+ggtitle("Mean of trial with target behind salient vs non salient distractor")+theme(text = element_text(size = 20))
 salmain
 #ggsave(filename = here("Figures","Saliency_main.png"),salmain)
 ```
@@ -348,7 +363,7 @@ The validity effect is not significant, $F = 2.07, p = 0.15$, however the main e
 
 ```{r interactiono, warning=FALSE, message=FALSE, results='asis'}
 ##for outliers
-  
+  #aggregating data within participant for ANOVA analysis. Only test trials are used.
 Exp7agg_o <- aggregate(data = Exp7data, RT_io~participant+Validity+Saliency, subset = (Condition == "test"), mean)
 
 #ANOVA
@@ -357,65 +372,45 @@ anova_VS_o <- ezANOVA(data = Exp7agg_o,
                        wid = participant,
                        within = .(Validity, Saliency),
                        detailed = TRUE)
+#displaying the aova result output for rmarkdown
 panderOptions('table.split.table',300)
 pander(anova_VS_o, style = "rmarkdown", caption = "ANOVA for test trials(w/o outliers) with Validity and Saliency as factors",split.table = Inf, missing = NA)
 
 
-
+#plotting the graph showing the interaction
 stdInteraction_o <- ggplot(Exp7agg_o, aes(x=Saliency, y=RT_io,color = Validity))+
     geom_line(aes(group = Validity, linetype = Validity),size = 1,stat = "summary", fun = "mean",)+
     geom_point(stat = "summary", fun = "mean", aes(shape = Validity))+
   scale_color_manual(values = c("deepskyblue4","cadetblue3"))+coord_cartesian(ylim = c(550,600))+
-  theme_classic()+ylab("ReactionTime (in ms)")+ggtitle("Interaction of Validity and Saliency")
+  theme_classic()+ylab("ReactionTime (in ms)")+ggtitle("Interaction of Validity and Saliency")+theme(text = element_text(size = 20))
 stdInteraction_o
 #ggsave(filename = here("Figures","interaction_o.png"),stdInteraction_o,width = 6,height = 4)
-
-t1 <- t.test(data = Exp7agg_o, RT_io~Validity, subset = (Saliency == "Salient"), paired = TRUE)
-t_out(t1,d.corr = F)
-
-
-
-pander(t1, style = "rmarkdown", caption = "t test for validity effect for salient trials, outliers")
-
-
-# # 
-# # 
- pander(t.test(data = Exp7agg_o, RT_io~Validity, subset = (Saliency == "NonSalient"), paired = TRUE), style = "rmarkdown", caption = "t test for validity effect for nonsalient trials, outliers")
-
-
-
-
-
 
 ```
 
 Here is a closer look at the effects, showing the mean difference between valid and invalid in each condition. T tests show that the difference is significant for salient trials and not significant for nonsalient trials
 
 ```{r meandiff, echo = FALSE, warning=FALSE, results='asis'}
+## performing a t test within each saliency condition to test how significant the difference in validity is. 
+ pander(t.test(data = Exp7agg_o, RT_io~Validity, subset = (Saliency == "NonSalient"), paired = TRUE), style = "rmarkdown", caption = "t test for validity effect for nonsalient trials, outliers")
 
-meanSalVal <- ezStats(data = Exp7agg_o,
-        dv = RT_io,
-        wid = participant,
-        within = .(Saliency,Validity))
-meanSalVal$SE <- meanSalVal$SD/sqrt(meanSalVal$N)
+pander(t.test(data = Exp7agg_o, RT_io~Validity, subset = (Saliency == "Salient"), paired = TRUE), style = "rmarkdown", caption = "t test for validity effect for salient trials, outliers")
 
-t1<-t.test(data =Exp7agg_o, RT_io ~ Validity,subset=(Saliency=="Salient"), paired=TRUE, alternative="two.sided" )
-t_out(t1, d.corr=F)
-MeanPD <- t1$conf.int[2]-t1$estimate
-meanSalVal$MeanPD <- MeanPD
+#creating a mean df across all participants per condition with ci to compute paired differences to be used for the error bars in the graphs
+meanSalVal <- summarySEwithin(Exp7agg_o, measurevar = "RT_io", withinvars = c("Saliency","Validity"), idvar = "participant", na.rm = FALSE, conf.interval = .95)
 
-
-
-salvalmean <- ggplot(meanSalVal, aes(x=Saliency, y=Mean,fill = Validity))+
+#the bargraph with mean difference
+salvalmean <- ggplot(meanSalVal, aes(x=Saliency, y=RT_io,fill = Validity))+
   geom_bar(stat = "identity",position = position_dodge())+
-  geom_errorbar(aes(ymin = Mean - MeanPD, ymax = Mean + MeanPD),width = .2, size = 1,position = position_dodge(.9))+
+  geom_errorbar(aes(ymin = RT_io - ci, ymax =RT_io + ci),width = .2, size = 1,position = position_dodge(.9))+
     # geom_line(aes(group = Saliency, linetype = Saliency),size = 1,stat = "summary", fun = "mean",)+
     # geom_point(stat = "summary", fun = "mean", aes(shape = Saliency))+
   scale_fill_manual(values = c("dodgerblue4","cadetblue3"))+coord_cartesian(ylim = c(500,600))+
-  theme_minimal()+ylab("ReactionTime (in ms)")+theme(legend.text = element_text(size = 15), legend.title  = element_text(size = 15), axis.text.x = element_text(size = 15)) 
+  theme_minimal()+ylab("ReactionTime (in ms)")+theme(text = element_text(size = 20)) 
 salvalmean
 #ggsave(filename = here("Figures","Barplot_SalxVal_RT.png"),salvalmean)
-#Mean difference
+
+#Mean difference computed to plot the validity effect as y axis
 mean_valEffect_o <- ezStats(data = Exp7agg_o,
         dv = RT_io,
         wid = participant,
@@ -436,7 +431,7 @@ pander(mean_valEffect_o, style = "rmarkdown", caption =  "Validity effect(invali
 Valeffectplot <- ggplot(mean_valEffect_o, aes(x=Saliency, y=Mean,fill = Saliency))+
     geom_bar(stat = "identity")+
   scale_fill_manual(values = c("cadetblue3","dodgerblue4"))+
-  theme_classic()+ylab("Validity effect (invalid - valid trials) in ms")+ggtitle("Difference between invalid and valid trials")
+  theme_classic()+ylab("Validity effect (invalid - valid trials) in ms")+ggtitle("Difference between invalid and valid trials")+theme(text = element_text(size = 20))
 Valeffectplot
 
 #ggsave(filename = here("Figures","Valeffectplot_o.png"),Valeffectplot,width = 6, height = 4)
@@ -452,9 +447,6 @@ Valeffectplot
 ##aggregate file for Error Rate with Validity and Saliency
 Exp7agg_ER <- aggregate(data = Exp7data,ErrorRate~participant+Validity+Saliency,subset = (Condition == "test"),mean)
 
-#to check outlier error rate
-Exp7ER <- aggregate(data = Exp7data,ErrorRate~participant,mean)
-
 
 
 anova_t_ER <- ezANOVA(data = Exp7agg_ER,
@@ -467,6 +459,7 @@ pander(anova_t_ER, style = 'rmarkdown', caption = "ANOVA results: ErrorRates in 
 
 anova_out(anova_t_ER)
 
+#interaction plot
 errorrateplot <-  ggplot(Exp7agg_ER, aes(x=Saliency, y=ErrorRate,color = Validity))+
     geom_line(aes(group = Validity, linetype = Validity),size = 1,stat = "summary", fun = "mean",)+
     geom_point(stat = "summary", fun = "mean", aes(shape = Validity))+
@@ -475,26 +468,16 @@ errorrateplot <-  ggplot(Exp7agg_ER, aes(x=Saliency, y=ErrorRate,color = Validit
 errorrateplot
 #ggsave(filename = here("Figures","ErrorRate.png"),errorrateplot,width=6,height = 4)
 
-meanSalValER <- ezStats(data = Exp7agg_ER,
-        dv = ErrorRate,
-        wid = participant,
-        within = .(Saliency,Validity))
-meanSalValER$SE <- meanSalValER$SD/sqrt(meanSalValER$N)
+#computing means per condition across all participants with paired differences CI for error bar in the graph
+meanSalValER <- summarySEwithin(Exp7agg_ER, measurevar = "ErrorRate", withinvars = c("Saliency","Validity"), idvar = "participant", na.rm = FALSE, conf.interval = .95)
 
-t3<-t.test(data =Exp7agg_ER, ErrorRate ~ Validity,subset=(Saliency=="Salient"), paired=TRUE, alternative="two.sided" )
-t_out(t3, d.corr=F)
-MeanPD <- t3$conf.int[2]-t3$estimate
-meanSalValER$MeanPD <- MeanPD
-
-
-
-salvalmeanER <- ggplot(meanSalValER, aes(x=Saliency, y=Mean,fill = Validity))+
+salvalmeanER <- ggplot(meanSalValER, aes(x=Saliency, y=ErrorRate,fill = Validity))+
   geom_bar(stat = "identity",position = position_dodge())+
-  geom_errorbar(aes(ymin = Mean - MeanPD, ymax = Mean + MeanPD),width = .2, size = 1,position = position_dodge(.9))+
+  geom_errorbar(aes(ymin = ErrorRate - ci, ymax = ErrorRate + ci),width = .2, size = 1,position = position_dodge(.9))+
     # geom_line(aes(group = Saliency, linetype = Saliency),size = 1,stat = "summary", fun = "mean",)+
     # geom_point(stat = "summary", fun = "mean", aes(shape = Saliency))+
   scale_fill_manual(values = c("dodgerblue4","cadetblue3"))+coord_cartesian(ylim = c(0,0.15))+
-  theme_minimal()+ylab("ReactionTime (in ms)")+theme(legend.text = element_text(size = 15), legend.title = element_text(size = 15), text = element_text(size = 15),axis.text.x = element_text(size = 15), axis.text.y = element_text(size = 15)) 
+  theme_minimal()+ylab("Error Rate")+theme(text = element_text(size = 20)) 
 salvalmeanER
 
 #ggsave(filename = here("Figures","Barplot_SalxVal_ER.png"),salvalmeanER,width=6,height = 4)
@@ -525,15 +508,20 @@ The ANOVA results along with the interaction plot are shown below. The mean diff
 
 ```{r outliersiesbis, warning=FALSE, message=FALSE,results='asis'}
 
-###FOR OUTLIERS
+###FOR outlier excluded RTs, creating an aggregated df with both RTs and Errorrate, so that IES can be computed
 
 Exp7agg_IES_o <- aggregate(Exp7test[,c("RT_io","ErrorRate","ACC_trials")], by = list(participant = Exp7test$participant,
                                                                        Validity = Exp7test$Validity,
                                                                        Saliency = Exp7test$Saliency), mean,na.rm = TRUE)
 
+#creating column IES that ocmputes the value based on RT and ER
 Exp7agg_IES_o$IES <- Exp7agg_IES_o$RT_io/(1-Exp7agg_IES_o$ErrorRate)
+
+#crreating a standardized RT score
 Exp7agg_IES_o$ZRT <- scale(Exp7agg_IES_o$RT_io)
+#creating a standardized score for the Accuracy
 Exp7agg_IES_o$ZPC <- scale(Exp7agg_IES_o$ACC_trials)
+#these standardised scores are then used to compute the balanced integration score in the same df
 Exp7agg_IES_o$BIS <- Exp7agg_IES_o$ZPC - Exp7agg_IES_o$ZRT
 
 ##with IES
@@ -553,6 +541,7 @@ IESinterplot_o <- ggplot(Exp7agg_IES_o, aes(x=Saliency, y=IES,color = Validity))
 IESinterplot_o
 #ggsave(filename = here("Figures","IESinterplot_o.png"),IESinterplot_o)
 
+### Validity effect plot preparation ####
 meanIES_o <- ezStats(data = Exp7agg_IES_o,
         dv = IES,
         wid = participant,
@@ -571,26 +560,19 @@ valeffectIES_o <- ggplot(data = meanIES_o, aes(x = Saliency, y = Mean, fill = Sa
 valeffectIES_o
 #ggsave(filename = here("Figures","valEffectwithIES_o.png"),valeffectIES_o)
 
-meanSalValIES <- ezStats(data = Exp7agg_IES_o,
-        dv = IES,
-        wid = participant,
-        within = .(Saliency,Validity))
-meanSalValIES$SE <- meanSalValIES$SD/sqrt(meanSalValIES$N)
 
-t4<-t.test(data =Exp7agg_IES_o, IES ~ Validity,subset=(Saliency=="Salient"), paired=TRUE, alternative="two.sided" )
-t_out(t4, d.corr=F)
-MeanPD <- t4$conf.int[2]-t4$estimate
-meanSalValIES$MeanPD <- MeanPD
+### Bar plot preparation ###
+
+meanSalValIES <- summarySEwithin(Exp7agg_IES_o, measurevar = "IES", withinvars = c("Saliency","Validity"), idvar = "participant", na.rm = FALSE, conf.interval = .95)
 
 
-
-salvalmeanIES <- ggplot(meanSalValIES, aes(x=Saliency, y=Mean,fill = Validity))+
+salvalmeanIES <- ggplot(meanSalValIES, aes(x=Saliency, y=IES,fill = Validity))+
   geom_bar(stat = "identity",position = position_dodge())+
-  geom_errorbar(aes(ymin = Mean - MeanPD, ymax = Mean + MeanPD),width = .2, size = 1,position = position_dodge(.9))+
+  geom_errorbar(aes(ymin = IES - ci, ymax = IES + ci),width = .2, size = 1,position = position_dodge(.9))+
     # geom_line(aes(group = Saliency, linetype = Saliency),size = 1,stat = "summary", fun = "mean",)+
     # geom_point(stat = "summary", fun = "mean", aes(shape = Saliency))+
   scale_fill_manual(values = c("dodgerblue4","cadetblue3"))+coord_cartesian(ylim = c(550,700))+
-  theme_minimal()+ylab("ReactionTime (in ms)")+theme(legend.text = element_text(size = 15), legend.title = element_text(size = 15), text = element_text(size = 15),axis.text.x = element_text(size = 15), axis.text.y = element_text(size = 15))  
+  theme_minimal()+ylab("IES (in ms)")+theme(text = element_text(size = 20))  
 salvalmeanIES
 
 #ggsave(filename = here("Figures","Barplot_salxval_IES.png"),salvalmeanIES)
@@ -613,7 +595,7 @@ anova_t_BIS_o <- ezANOVA(data = Exp7agg_IES_o,
 panderOptions('table.split.table',300)
 pander(anova_t_BIS_o, style = 'rmarkdown', caption = "ANOVA results: using BIS(outliers)", split.table = "Inf", missing = NA)
 
-
+# interaction plot with BIS as dv
 BISinterplot_o <- ggplot(Exp7agg_IES_o, aes(x=Saliency, y=BIS,color = Validity))+
     geom_line(aes(group = Validity, linetype = Validity),size = 1,stat = "summary", fun = "mean",)+
     geom_point(stat = "summary", fun = "mean", aes(shape = Validity))+
@@ -622,7 +604,7 @@ BISinterplot_o <- ggplot(Exp7agg_IES_o, aes(x=Saliency, y=BIS,color = Validity))
 BISinterplot_o
 #ggsave(filename = here("Figures","BISinterplot_o.png"),BISinterplot_o)
 
-
+## remaining plots were not used as only IES was reported in the manuscript
 ```
 
 The mean difference is also significant for both types of scores in the salient condition and not in the nonsalient condition
