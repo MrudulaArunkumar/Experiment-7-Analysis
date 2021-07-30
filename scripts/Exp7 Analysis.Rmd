@@ -641,12 +641,15 @@ The conditions used to satisfy this last occurrence are:
 -   The last occurrence was a trial that was answered correctly
 
 ```{r prevocc, message=FALSE, warning=FALSE}
-
+#moving all the necessary columns to the front for easy reference
 Exp7data <- Exp7data%>%select(Condition, SalD,NSalD,Saliency,Validity, everything())
 
-###first is to find out the trials where the previous occurence wa the immediate previous one
+###first is to find out the trials where the previous occurence was the immediate previous one
+
+#creating new column which is the distance
 Exp7data$Distance <- NA
 Exp7data <- Exp7data%>%select(Distance,ACC_trials,everything())
+# filling up the distance column by checking whether - immediately previous trial (n-1) was a test or learn trials, whetehr it had the same distractor as n, within the same participant and if it is an accurate trial
 Exp7data <- Exp7data%>%
   mutate(Distance = ifelse((lag(Condition,1)=="test" | lag(Condition,1) == "learn")& 
               (lag(SalD,1)== SalD|lag(NSalD,1)==NSalD) &
@@ -659,6 +662,7 @@ pander(table(Exp7data$Distance), style = 'rmarkdown', caption = "Table showing t
 ## Now to look at other distances of the last occurrence beyond the immediately preceding one
 lagvalue <- 2:20
 
+#same as above but here j will refere to the n - jth trial where the last occurence occurred.
 for(j in lagvalue){
   Exp7data <- Exp7data %>% 
     mutate(Distance = ifelse((lag(Condition,j)=="learn"|lag(Condition,j)=="test") &                     (lag(SalD,j)==SalD|lag(NSalD,j)==NSalD) & lag(participant,j)==participant & lag(ACC_trials,j)== 1 & is.na(Distance)==TRUE, j, Distance))
@@ -670,9 +674,9 @@ pander(table(Exp7data$Distance), style = 'rmarkdown', caption = "Table showing t
 
 ### Previous Response
 
-Coding what the previous Response was, whether it was the same or different. This variable is defined as Response Type, which has two factors: Response Change(RC) and Response Repetition (RR)
+Coding what the previous Response was, whether it was the same or different. This variable is defined as Response Relation, which has two factors: Response Change(RC) and Response Repetition (RR)
 
-*To be noted: This does not equate to validity* because the SRB trials can have the combination of invalid prime and invalid probe --\> Response Repetition which is confounded by Validity. So every valid probe can have both the Response Type factors based on whether the prime is valid or invalid
+*To be noted: This does not equate to validity* because the SRB trials can have the combination of invalid prime and invalid probe --> Response Repetition which is confounded by Validity. So every valid probe can have both the Response Type factors based on whether the prime is valid or invalid
 
 ```{r disttype, message=FALSE, warning=FALSE}
 
@@ -706,13 +710,17 @@ The conditions used to determine this variable are:
 So essentially, OvershadowSRB tells about the saliency of the test trial (replacing the Saliency factor in the main data)
 
 ```{r overSRB, message=FALSE, warning=FALSE}
+#creating a new variable that basically equates to saliency of trial n
 Exp7data$ProbeSaliency <- NA
 
 Exp7data <- Exp7data%>%select(ProbeSaliency, everything())
+
+#Salient is referred to as 1
 Exp7data <- Exp7data %>%
   mutate(ProbeSaliency = ifelse((Condition == "test" & lag(Condition,1) == "learn") &
            lag(SalD,1) == SalD & lag(participant,1)==participant & lag(ACC_trials,1)==1, 1,ProbeSaliency))
 
+#nonsalient is referrred to as 2
 Exp7data <- Exp7data %>%
   mutate(ProbeSaliency = ifelse((Condition == "test" & lag(Condition,1) == "learn") &
            lag(NSalD,1)==NSalD & lag(participant,1)==participant & lag(ACC_trials,1)==1 & is.na(ProbeSaliency) == TRUE,2,ProbeSaliency))
@@ -732,7 +740,7 @@ Exp7_OverSRB<- Exp7_OverSRB%>%select(CorrectAnswer, everything())
 
 Exploratory ANOVA to check how overshadowing looks at a Binding level, using Retrieval effect (ResponseRel) as the variable to check how Saliency affects retrieval.
 
-\*Aggregate file is created only using the factors of ProbeSaliency and ResponseRel, without Validity because when Validity is included it leads to more missing values and imbalanced data.
+Aggregate file is created only using the factors of ProbeSaliency and ResponseRel, without Validity because when Validity is included it leads to more missing values and imbalanced data.
 
 > The results show a significant interaction between probe saliency and ResponseRel(repeats/changes) and a main effect of probe saliency (overshadow SRB)
 
@@ -745,11 +753,7 @@ Exp7overSRB_Agg <- Exp7overSRB_Agg %>%
 Exp7overSRB_Agg$ProbeSaliency <- as.factor(Exp7overSRB_Agg$ProbeSaliency)
 
 #ANOVA
-#anovaSRB <- ezANOVA(data = Exp7overSRB_Agg,
-                    # dv = RT_io,
-                    # wid = participant,
-                    # within = .(ProbeSaliency,ResponseRel,Validity),
-                    # detailed = TRUE)
+#ezANOVA does not work due to imbalanced design so aov function is used.
 anovaSRB <- aov(RT_io~(Validity*ProbeSaliency*ResponseRel)+Error(participant/(Validity*ProbeSaliency*ResponseRel)), data = Exp7overSRB_Agg)
 pander(anovaSRB, style = 'rmarkdown', caption = "ANOVA results for binding trials with Response Type and Probe Saliency")
 
@@ -757,12 +761,11 @@ pander(anovaSRB, style = 'rmarkdown', caption = "ANOVA results for binding trial
 srbInteraction_o <- ggplot(Exp7overSRB_Agg, aes(x=ProbeSaliency, y=RT_io,color = ResponseRel))+
     geom_line(aes(group = ResponseRel, linetype = ResponseRel),size = 1,stat = "summary", fun = "mean",)+
     geom_point(stat = "summary", fun = "mean", aes(shape = ResponseRel))+
-  scale_color_manual(values = c("deepskyblue4","cadetblue3"))+xlab("Probe Saliency")+theme_classic()+ylab("ReactionTime (in ms)")+ggtitle("Interaction of ResponseRelation and Saliency for Probe Trials")+facet_grid(.~Validity)
+  scale_color_manual(values = c("deepskyblue4","cadetblue3"))+xlab("Probe Saliency")+theme_classic()+ylab("ReactionTime (in ms)")+ggtitle("Interaction of ResponseRelation and Saliency for Probe Trials")+facet_grid(.~Validity)+theme(text = element_text(size = 20))
 srbInteraction_o
-#ggsave(filename = here("Figures", "SRBinter_RT.png"), srbInteraction_o)
-#ggsave(filename = here("Figures","SRBinterwithRespType.png"), srbInteraction_o)
 ggsave(filename = here("Figures","SRB3factors.png"),srbInteraction_o)
 
+#testing the strength of the retrieval effects for salient and nonsalient distractor
 pander(t.test(data =Exp7overSRB_Agg, RT_io~ResponseRel, subset = (ProbeSaliency == "Salient"),paired = TRUE), style = "rmarkdown", caption = "T test result for Retrieval effect for Salient probes")
 # 
 pander(t.test(data =Exp7overSRB_Agg, RT_io~ResponseRel, subset = (ProbeSaliency == "NonSalient"),paired = TRUE),style = "rmarkdown", caption = "T test result for Retrieval effect for NonSalient probes")
