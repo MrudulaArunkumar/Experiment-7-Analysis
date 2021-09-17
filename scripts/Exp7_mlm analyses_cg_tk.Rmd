@@ -351,7 +351,8 @@ randomSlopes_m1_err<-glmer(err_trials~1+val*sal + (1+val*sal|participant),
 hist(raw.data$err_trials)
 
 summary(randomSlopes_m1_err)
-
+tab_model(randomSlopes_m1_err, show.se = TRUE,show.stat = TRUE, show.ci = FALSE,show.aic = TRUE, show.loglik = TRUE, 
+                  dv.labels = "Error Rate")
 plot_model(randomSlopes_m1_err, type = "pred", terms = c("sal", "val[minmax]"))
 
 #Check pattern behind IA
@@ -406,22 +407,26 @@ summary(randomSlopes_m2_err)
 #Err: previous_rm x distance ia sign
 ```
 
-
+### model 3
 
 ```{r m3}
 
 #Interaktion Val*Sal wieder mit aufnehmen
-randomSlopes_m4<-lmer(RT_io~1+val*sal*previous_rm_cwp*Distance_cwp+(1+val*sal + previous_rm_cwp*Distance_cwp|participant), 
-                      data=raw.data, 
+randomSlopes_m4<-lmer(RT_io~1+val*sal*previous_rm_cwp*Distance_cwp+(1+val*sal*previous_rm_cwp*Distance_cwp|participant),                       data=raw.data, 
                       REML=F,
                       na.action = "na.omit")
+
+tab_model(randomSlopes_m4, show.se = TRUE,show.stat = TRUE, show.ci = FALSE,show.aic = TRUE, show.loglik = TRUE, 
+                  dv.labels = "Reaction Time")
 
 summary(randomSlopes_m4)
 
-randomSlopes_m4_err<-lmer(err_trials~1+val*sal*previous_rm_cwp*Distance_cwp+(1+val*sal + previous_rm_cwp*Distance_cwp|participant), 
+randomSlopes_m4_err<-lmer(err_trials~1+val*sal*previous_rm_cwp*Distance_cwp+(1+val*sal* previous_rm_cwp*Distance_cwp|participant), 
                       data=raw.data, 
                       REML=F,
                       na.action = "na.omit")
+tab_model(randomSlopes_m4_err, show.se = TRUE,show.stat = TRUE, show.ci = FALSE,show.aic = TRUE, show.loglik = TRUE, 
+                  dv.labels = "Error Rate")
 
 summary(randomSlopes_m4_err)
 #RT: val *sal Interaction still significant
