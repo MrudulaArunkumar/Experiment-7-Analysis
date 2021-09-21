@@ -100,6 +100,7 @@ Exp7data <- Exp7data %>%
   separate(TargetResp.rt, into = c("RTm_Trials","RTm_secondary"), sep = ',')
 
 Exp7data$RTm_Trials <- Exp7data$RTm_Trials %>% str_replace_all("\\[|\\]","") %>% as.double(Exp7data$RTm_Trials) 
+
 Exp7data$RTm_Trials <- 1000*(Exp7data$RTm_Trials)
 
 
@@ -152,7 +153,9 @@ Exp7Bonus$Perf <- na.omit(Exp7data$Performance)
 Exp7data <- Exp7data %>%
   mutate(ACC_trials = ifelse(is.na(TargetResp.corr)==FALSE,TargetResp.corr,
                          ifelse(is.na(CAResponse.corr)==FALSE,CAResponse.corr,NA)))
-Exp7data <- Exp7data %>% mutate(ACC_trials = ifelse(Block == "CG Learn",NA,ACC_trials))
+#removing the trials from the guessing block
+Exp7data <- Exp7data %>% 
+  mutate(ACC_trials = ifelse(Block == "CG Learn",NA,ACC_trials))
 
 # creating a column for error Rate
 Exp7data$ErrorRate <- 1 - Exp7data$ACC_trials
@@ -176,11 +179,11 @@ Exp7_CA <- Exp7data %>%
   starts_with("CA"),Target) %>%
   filter(Target == "?"| str_detect(AwareQ, "Press")|Block == "CGLearn") %>% distinct()
 
-write_csv(file = here("Data","Exp7Awareness.csv"),Exp7_CA)
+#write_csv(file = here("Data","Exp7Awareness.csv"),Exp7_CA)
 
 Exp7data <- Exp7data %>% drop_na(RT_Trials)
 
-write_csv(file = here("Data","Exp7dataset_tidy.csv"),Exp7data)
+#write_csv(file = here("Data","Exp7dataset_tidy.csv"),Exp7data)
 ```
 
 ## Descriptives
@@ -267,9 +270,9 @@ This shows that participants successfully picked up the association between the 
 ##creating an aggregate to check for validity effect
 #Exp7learn_agg <- aggregate(data = Exp7data, RT_ifo~participant+Validity,mean)
 
-#only choosing learn block to test for validity effect
-Exp7learn_agg_o <- aggregate(data = Exp7data, RT_io~participant+Validity,subset = (Condition == "learn"),mean)
-Exp7learn_agg_o_ER <- aggregate(data = Exp7data, ErrorRate~participant+Validity,subset = (Condition == "learn"),mean)
+# #only choosing learn block to test for validity effect
+# Exp7learn_agg_o <- aggregate(data = Exp7data, RT_io~participant+Validity,subset = (Condition == "learn"),mean)
+# Exp7learn_agg_o_ER <- aggregate(data = Exp7data, ErrorRate~participant+Validity,subset = (Condition == "learn"),mean)
 
 # this is a tidy version and replicates with the aggregate
 Exp7learnagg <- Exp7data %>% 
@@ -302,7 +305,7 @@ pander((t.test(data = Exp7learnagg, ER~Validity,paired = TRUE, alternative = "gr
 
 
 ## PLotting the valid and invalid RTs
-valmain <- ggplot(Exp7learn_agg_o, aes(x=Validity, y=RT_io))+
+valmain <- ggplot(Exp7learnagg, aes(x=Validity, y=RT_io))+
     geom_line(aes(group = 1, color = "deepskyblue4"),size = 1,stat = "summary", fun = "mean",show.legend = FALSE)+
   geom_point(aes(group = Validity, color = "deepskyblue4"),size = 1,stat = "summary", fun = "mean",show.legend = FALSE)+coord_cartesian(ylim = c(550,650))+
   scale_color_manual(values = c("deepskyblue4","cadetblue3"))+
@@ -310,7 +313,7 @@ valmain <- ggplot(Exp7learn_agg_o, aes(x=Validity, y=RT_io))+
 valmain
 
 # Plotting the valid and invalid ERs
-valmainER <- ggplot(Exp7learn_agg_o_ER, aes(x=Validity, y=ErrorRate))+
+valmainER <- ggplot(Exp7learnagg, aes(x=Validity, y=ER))+
     geom_line(aes(group = 1, color = "deepskyblue4"),size = 1,stat = "summary", fun = "mean",show.legend = FALSE)+
   geom_point(aes(group = Validity, color = "deepskyblue4"),size = 1,stat = "summary", fun = "mean",show.legend = FALSE)+coord_cartesian(ylim = c(0,0.20))+
   scale_color_manual(values = c("deepskyblue4"))+
@@ -431,7 +434,7 @@ pander(anova_VS_o, style = "rmarkdown", caption = "ANOVA for test trials(w/o out
 anova_out(anova_VS_o)
 
 #plotting the graph showing the interaction
-stdInteraction_o <- ggplot(Exp7agg_o, aes(x=Saliency, y=RT_io,color = Validity))+
+stdInteraction_o <- ggplot(Exp7agg, aes(x=Saliency, y=RT_io,color = Validity))+
     geom_line(aes(group = Validity, linetype = Validity),size = 1,stat = "summary", fun = "mean",)+
     geom_point(stat = "summary", fun = "mean", aes(shape = Validity))+
   scale_color_manual(values = c("deepskyblue4","cadetblue3"))+coord_cartesian(ylim = c(550,600))+
@@ -467,7 +470,7 @@ salvalmean
 #ggsave(filename = here("Figures","Barplot_SalxVal_RT.png"),salvalmean)
 
 #Mean difference computed to plot the validity effect as y axis
-mean_valEffect_o <- ezStats(data = Exp7agg_o,
+mean_valEffect_o <- ezStats(data = Exp7agg,
         dv = RT_io,
         wid = participant,
         within_full = .(Saliency,Validity),
@@ -955,10 +958,7 @@ Exp7_CA <- Exp7_CA %>%
   select(SalD,NSalD,SalIndex,Block,TotalAcc,Saliency,everything())
 
 
-awarenessTable <- Exp7_CA %>%
-  select(participant,SalIndex,Saliency,Learn_NonSalTotalAcc,Learn_SalTotalAcc,Test_NonSalTotalAcc,Test_SalTotalAcc,Block,TotalAcc)
 
-awarenessTable$SalIndex <- as.factor(awarenessTable$SalIndex)
 
 
 correlQnoAcc <- ggplot(Exp7_CA, aes(x = CAResponse.corr, y = LearnGuessOrder))+
@@ -1078,6 +1078,21 @@ CA_Summary %>% group_by(SalIndex,TotalAcc,Condition,Saliency)  %>%
 A_Summary$AwareQSal <- ifelse(A_Summary$SaliencyAware == "2" ,1,0)
 pander(table(A_Summary$AwareQSal), style = "rmarkdown", caption = "Number of participants with awareness(1)")
 
+CG <- CA_Summary %>% 
+  dplyr::group_by(participant) %>% 
+  dplyr::summarise(TestSalAcc = sum(TestSalAcc),
+            TestNonSalAcc = sum(TestNonSalAcc),
+            LearnSalAcc = sum(LearnSalAcc),
+            LearnNonSalAcc = sum(LearnNonSalAcc))
+
+AQ <- A_Summary %>% 
+  dplyr::group_by(participant) %>% 
+  dplyr::summarise(TotalQAcc = sum(TotalQAcc),
+            SalAware = sum(SaliencyAware))
+
+
+Exp7Aware <- merge(Exp7agg,CG, by = "participant")
+Exp7Aware <- merge(Exp7Aware,AQ, by = "participant")
 
 ```
 ## using Learn Sal Score as ANCOVA
@@ -1182,21 +1197,7 @@ correlguess <- ggplot(Exp7guess, aes(x = LearnCA_Acc, y = TestCA_Acc))+
   stat_smooth(method = "lm", color = "seagreen")+theme_classic()+xlab("Accuracy score in learn guess")+ylab("Accuracy score in test guessing trials")+ggtitle("Correlation between both types of guessing trials")
 correlguess
 
-CG <- CA_Summary %>% 
-  dplyr::group_by(participant) %>% 
-  dplyr::summarise(TestSalAcc = sum(TestSalAcc),
-            TestNonSalAcc = sum(TestNonSalAcc),
-            LearnSalAcc = sum(LearnSalAcc),
-            LearnNonSalAcc = sum(LearnNonSalAcc))
 
-AQ <- A_Summary %>% 
-  dplyr::group_by(participant) %>% 
-  dplyr::summarise(TotalQAcc = sum(TotalQAcc),
-            SalAware = sum(SaliencyAware))
-
-
-Exp7Aware <- merge(Exp7agg,CG, by = "participant")
-Exp7Aware <- merge(Exp7Aware,AQ, by = "participant")
 ```
 
 
